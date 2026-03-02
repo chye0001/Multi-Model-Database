@@ -28,7 +28,6 @@ COPY package*.json ./
 RUN npm ci
 
 # Copy built application from builder
-COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/database ./database
 
 # Copy source for runtime (if needed)
