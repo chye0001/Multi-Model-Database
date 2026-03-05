@@ -1,24 +1,11 @@
 -- View: Outfit overview with creator and item count
 CREATE OR REPLACE VIEW outfit_overview AS
-SELECT
-    o.id,
-    o.name,
-    o.style,
-    o."dateAdded",
-    u."firstName",
-    u."lastName",
-    COUNT(oi.id) AS item_count
+SELECT o.id, o.name, o.style, o."dateAdded", u."firstName", u."lastName", COUNT(oi.id) AS item_count
 FROM outfits o
          JOIN users u ON o."createdBy" = u.id
          LEFT JOIN outfit_items oi ON o.id = oi."outfitId"
 GROUP BY
-    o.id,
-    o.name,
-    o.style,
-    o."dateAdded",
-    u."firstName",
-    u."lastName";
-
+    o.id, o.name, o.style, o."dateAdded", u."firstName", u."lastName";
 
 -- Function: Calculate total price of an outfit
 CREATE OR REPLACE FUNCTION calculate_outfit_price(outfit_id BIGINT)
@@ -72,11 +59,15 @@ CREATE TRIGGER validate_item_price
                          EXECUTE FUNCTION check_item_price();
 
 
--- Function: Delete reviews older than 2 years (requires createdAt column)
-CREATE OR REPLACE FUNCTION delete_old_reviews()
+-- Event function: Remove closets without items (pgAgent needed)
+CREATE OR REPLACE FUNCTION delete_empty_closets()
 RETURNS VOID AS $$
 BEGIN
-DELETE FROM reviews
-WHERE "createdAt" < NOW() - INTERVAL '2 years';
+DELETE FROM closets c
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM closet_items ci
+    WHERE ci."closetId" = c.id
+);
 END;
 $$ LANGUAGE plpgsql;
