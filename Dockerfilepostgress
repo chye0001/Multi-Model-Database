@@ -1,0 +1,9 @@
+FROM pgvector/pgvector:pg17
+
+RUN apt-get update && apt-get install -y \
+    postgresql-17-cron \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY database/postgres/init/01_pg_cron.sql /docker-entrypoint-initdb.d/01_pg_cron.sql
+
+CMD ["postgres", "-c", "shared_preload_libraries=pg_cron", "-c", "cron.database_name=postgres"]

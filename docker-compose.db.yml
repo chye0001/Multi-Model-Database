@@ -1,7 +1,9 @@
 services:
   postgres:
     container_name: postgres_database
-    image: postgres:17.7
+    build:
+      context: .
+      dockerfile: Dockerfilepostgress
     ports:
       - ${POSTGRES_PORT}:5432
     environment:
@@ -12,7 +14,6 @@ services:
       - database_volume:/var/lib/postgresql/data
     networks:
       - database_network
-  
   mongo:
     image: mongo:7
     container_name: mongo-standalone
