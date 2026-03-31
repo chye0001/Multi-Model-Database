@@ -3,8 +3,8 @@ import { randomUUID } from "crypto";
 import { connectMongo, closeMongo } from "../mongoose-client.js";
 import type { HydratedDocument } from "mongoose";
 
-import { Country, User, Brand, Category, Item, Closet, Outfit } from "../models/index.js";
-import type { ICountry, IItem, IBrand, IUser } from "../models/index.js";
+import { Country, Category, User, Brand, Item, Closet, Outfit } from "../models/index.js";
+import type { ICountry, ICategory, IBrand, IUser, IItem  }  from "../models/index.js";
 
 // ---------------------------------------------------------------------------
 // helpers
@@ -13,8 +13,8 @@ import type { ICountry, IItem, IBrand, IUser } from "../models/index.js";
 async function clearAll() {
   await Promise.all([
     Country.deleteMany({}),
-    User.deleteMany({}),
     Category.deleteMany({}),
+    User.deleteMany({}),
     Brand.deleteMany({}),
     Item.deleteMany({}),
     Closet.deleteMany({}),
@@ -43,7 +43,7 @@ async function seed() {
     { id: randomUUID(), name: "Bottoms" },
     { id: randomUUID(), name: "Outerwear" },
     { id: randomUUID(), name: "Footwear" },
-  ]);
+  ]) as HydratedDocument<ICategory>[];
   console.log("[seed] categories ✓");
 
   // ── 3. brands ─────────────────────────────────────────────────────────────
@@ -92,14 +92,14 @@ async function seed() {
   console.log("[seed] users ✓");
 
   // ── 5. items ──────────────────────────────────────────────────────────────
-  // category is now embedded directly — no separate categories collection needed
+  // category embeds both id (reference) and name (denormalised for fast reads)
   const [woolJacket, straightJeans, whiteShirt, leatherBoots] =
     await Item.insertMany([
       {
         id: randomUUID(),
         name: "Wool Jacket",
         price: 1299.0,
-        category: { name: "Outerwear" },
+        category: { id: outerwear!.id, name: outerwear!.name },
         brandIds: [norseProjects!._id],
         images: [{ id: randomUUID(), url: "https://cdn.example.com/wool-jacket.jpg" }],
       },
@@ -107,7 +107,7 @@ async function seed() {
         id: randomUUID(),
         name: "Straight Jeans",
         price: 899.0,
-        category: { name: "Bottoms" },
+        category: { id: bottoms!.id, name: bottoms!.name },
         brandIds: [apc!._id],
         images: [{ id: randomUUID(), url: "https://cdn.example.com/straight-jeans.jpg" }],
       },
@@ -115,7 +115,7 @@ async function seed() {
         id: randomUUID(),
         name: "White Oxford Shirt",
         price: 599.0,
-        category: { name: "Tops" },
+        category: { id: tops!.id, name: tops!.name },
         brandIds: [norseProjects!._id, apc!._id],
         images: [{ id: randomUUID(), url: "https://cdn.example.com/white-shirt.jpg" }],
       },
@@ -123,7 +123,7 @@ async function seed() {
         id: randomUUID(),
         name: "Leather Chelsea Boots",
         price: 1599.0,
-        category: { name: "Footwear" },
+        category: { id: footwear!.id, name: footwear!.name },
         brandIds: [norseProjects!._id],
         images: [{ id: randomUUID(), url: "https://cdn.example.com/chelsea-boots.jpg" }],
       },

@@ -7,6 +7,7 @@ export { Closet }  from "./closets/Closet.model.js";
 export { Outfit }  from "./outfits/Outfit.model.js";
 
 export type { ICountry } from "./references/Country.model.js";
+export type { ICategory } from "./clothings/Category.model.js";
 export type { IBrand }   from "./brands/Brand.model.js";
 export type { IUser }    from "./users/User.model.js";
 export type { IItem }    from "./clothings/Item.model.js";

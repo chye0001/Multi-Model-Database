@@ -1,20 +1,23 @@
 import mongoose, { Schema, Document, Model } from "mongoose";
 
-export interface ICategory {
-  name: string;
+// import type { ICategory } from "../clothings/Category.model.js";
+// import { CategorySchema } from "../clothings/Category.model.js";
+
+// Item.model.ts — define a separate embedded shape, don't reuse CategorySchema
+export interface IEmbeddedCategory {
+  id: string;   // uuid copied from the category document
+  name: string; // denormalised name for fast reads
 }
 
-const CategorySchema = new Schema<ICategory>(
+const EmbeddedCategorySchema = new Schema<IEmbeddedCategory>(
   {
+    id:   { type: String, required: true }, // uuid reference to categories collection
     name: { type: String, required: true, trim: true },
   },
   {
-    _id: false, // embedded sub-document, no own ObjectId needed
+    _id: false, // no ObjectId — this is not a standalone document
   }
 );
-
-
-
 
 export interface IImage {
   id: string;
@@ -38,7 +41,7 @@ export interface IItem extends Document {
   id: string;
   name: string;
   price: number | null;
-  category: ICategory;
+  category: IEmbeddedCategory;
   brandIds: mongoose.Types.ObjectId[];
   images: IImage[];
 }
@@ -48,7 +51,7 @@ const ItemSchema = new Schema<IItem>(
     id:       { type: String, required: true, unique: true },
     name:     { type: String, required: true, trim: true },
     price:    { type: Number, default: null },
-    category: { type: CategorySchema, required: true },
+    category: { type: EmbeddedCategorySchema, required: true },
     brandIds: [{ type: Schema.Types.ObjectId, ref: "Brand" }],
     images:   [ImageSchema],
   },
