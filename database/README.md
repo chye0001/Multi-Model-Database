@@ -1,4 +1,4 @@
-# Start up local databases
+# Start/Stop local databases
 Starting up the local database instances simply navigate to the root of the project in the terminal.
 Then execute the folllowing command: 
 
@@ -16,6 +16,13 @@ or simply set the value of DB_VOLUME in the [.env](.env) file and run:
 ```bash
 docker compose -f docker-compose.db.yml up -d
 ```
+
+To stop the local database instances:
+```bash
+docker compose -f docker-compose.db.yml down
+```
+
+
 
 
 # Working with Prisma - Postgres ORM
