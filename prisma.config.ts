@@ -8,10 +8,10 @@ if (!["dev", "test", "prod"].includes(nodeEnv)) {
   throw new Error(`Invalid NODE_ENV value: ${nodeEnv}. Expected one of: dev, test, prod`);
 }
 
-const databaseUrl = process.env[`POSTGRES_DATABASE_URL_${nodeEnv}`];
+const databaseUrl = process.env[`POSTGRES_DATABASE_URL_${nodeEnv.toUpperCase()}`];
 
 if (!databaseUrl) {
-  throw new Error(`POSTGRES_DATABASE_URL_${nodeEnv} environment variable is required. Set it in your .env file located at /database/postgres/.env`);
+  throw new Error(`POSTGRES_DATABASE_URL_${nodeEnv.toUpperCase()} environment variable is required. Set it in your .env file located at /database/postgres/.env`);
 }
 
 export default defineConfig({
