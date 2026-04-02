@@ -35,8 +35,7 @@ services:
     volumes:
       - neo4j_data:/data
     environment:
-      NEO4J_AUTH: ${NEO4J_USER}/${NEO4J_PASSWORD}
-      NEO4J_PLUGINS: '["apoc"]'      # APOC utility library, very commonly used
+      NEO4J_AUTH: ${NEO4J_USERNAME_DEV}/${NEO4J_PASSWORD_DEV}
     healthcheck:
       test: ["CMD", "cypher-shell", "-u", "neo4j", "-p", "password", "RETURN 1"]
       interval: 10s
