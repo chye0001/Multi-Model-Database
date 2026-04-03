@@ -37,6 +37,8 @@ const ClosetSchema = new Schema<ICloset>(
   {
     timestamps: { createdAt: true, updatedAt: false },
     versionKey: false,
+     // 1. Disable the built-in Mongoose 'id' virtual to avoid conflict with your UUID 'id'
+    id: false, 
   }
 );
 

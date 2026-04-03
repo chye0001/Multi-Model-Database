@@ -1,14 +1,15 @@
 import { ModelFactory } from "neogma";
-import type { NeogmaInstance } from "neogma";
+import type { ModelRelatedNodesI, NeogmaInstance } from "neogma";
 
 import { neogma } from "../neogma-client.js";
-
 
 // ─────────────────────────────────────────────
 // Interfaces
 // ─────────────────────────────────────────────
 
 export interface ImageProperties {
+  /** Stable unique identifier — uuid v4 generated at creation time. */
+  imageId: string;
   /** Public URL of the image, e.g. a CDN link. Optional per diagram. */
   url?: string;
   [key: string]: any;
@@ -34,11 +35,16 @@ function buildImageModel() {
     {
       label: "Image",
       schema: {
+        imageId: {
+          type: "string",
+          required: true,
+        },
         url: {
           type: "string",
           required: false,
         },
       },
+      primaryKeyField: "imageId",
       relationships: {},
     },
     neogma

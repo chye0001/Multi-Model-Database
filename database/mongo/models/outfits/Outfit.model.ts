@@ -41,6 +41,8 @@ const OutfitSchema = new Schema<IOutfit>(
   {
     timestamps: { createdAt: "dateAdded", updatedAt: false },
     versionKey: false,
+     // 1. Disable the built-in Mongoose 'id' virtual to avoid conflict with your UUID 'id'
+    id: false, 
   }
 );
 

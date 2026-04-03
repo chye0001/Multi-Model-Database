@@ -48,7 +48,6 @@ const { encrypted, ...connectionConfig } = config[ENV];
 export const neogma = new Neogma(
   //@ts-ignore
   connectionConfig, {
-    logger: console,   // ← uncomment to log every Cypher query
     encrypted: encrypted ? "ENCRYPTION_ON" : "ENCRYPTION_OFF",
   }
 );
@@ -63,13 +62,14 @@ export async function connectNeo4j(): Promise<void> {
     try {
       await neogma.verifyConnectivity();
       isConnected = true;
-      console.log(`Neo4j connected on attempt ${attempt}`);
+      console.log(`[Neo4j] Connected on attempt ${attempt}`);
+      break;
 
     } catch (error) {
-      console.warn(`Neo4j connection attempt ${attempt}/${MAX_RETRIES} failed. Retrying in ${DELAY_MS}ms...`);
+      console.warn(`[Neo4j] Connection attempt ${attempt}/${MAX_RETRIES} failed. Retrying in ${DELAY_MS}ms...`);
 
       if (attempt === MAX_RETRIES) {
-        throw new Error(`Neo4j failed to connect after ${MAX_RETRIES} attempts`);
+        throw new Error(`[Neo4j] Failed to connect after ${MAX_RETRIES} attempts`);
       }
 
       await new Promise((res) => setTimeout(res, DELAY_MS));

@@ -24,6 +24,7 @@ export async function connectMongo(): Promise<void> {
     try {
       await mongoose.connect(URI as string, { dbName: DB_NAME as string });
       console.log(`[mongoose] Connected to ${DB_NAME} on attempt ${attempt}`);
+      break;
 
     } catch (error) {
       console.warn(`[mongoose] Connection attempt ${attempt}/${MAX_RETRIES} failed. Retrying in ${DELAY_MS}ms...`);
