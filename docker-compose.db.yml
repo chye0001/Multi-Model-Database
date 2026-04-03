@@ -14,6 +14,7 @@ services:
       - database_volume:/var/lib/postgresql/data
     networks:
       - database_network
+
   mongo:
     image: mongo:7
     container_name: mongo-standalone
@@ -34,15 +35,43 @@ services:
       - "7687:7687"   # Bolt protocol (driver connects here)
     volumes:
       - neo4j_data:/data
+      - ./database/neo4j/constraints-and-indexes.cypher:/init/constraints-and-indexes.cypher:ro
     environment:
       NEO4J_AUTH: ${NEO4J_USERNAME_DEV}/${NEO4J_PASSWORD_DEV}
     healthcheck:
-      test: ["CMD", "cypher-shell", "-u", "neo4j", "-p", "password", "RETURN 1"]
+      test: ["CMD", "cypher-shell", "-u", "${NEO4J_USERNAME_DEV}", "-p", "${NEO4J_PASSWORD_DEV}", "RETURN 1"]
       interval: 10s
       timeout: 5s
       retries: 10
     networks:
       - database_network
+
+  neo4j-init:
+    image: neo4j:5
+    container_name: neo4j_init
+    depends_on:
+      neo4j:
+        condition: service_healthy
+    volumes:
+      - ./database/neo4j/cyphers/constraints-and-indexes.cypher:/init/constraints-and-indexes.cypher:ro
+    environment:
+      NEO4J_USERNAME: ${NEO4J_USERNAME_DEV}
+      NEO4J_PASSWORD: ${NEO4J_PASSWORD_DEV}
+    networks:
+      - database_network
+    entrypoint: ["/bin/bash", "-c"]
+    command:
+      - |
+        echo "Applying Neo4j constraints and indexes..."
+        cypher-shell -a bolt://neo4j:7687 -u $$NEO4J_USERNAME -p $$NEO4J_PASSWORD -f /init/constraints-and-indexes.cypher
+        if [ $$? -eq 0 ]; then
+          echo "Constraints and indexes applied successfully."
+        else
+          echo "Failed to apply constraints and indexes."
+          exit 1
+        fi
+    restart: "no"
+
   
 
 volumes:
