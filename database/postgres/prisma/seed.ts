@@ -1,333 +1,325 @@
-import "dotenv/config"
-import { prisma } from "../prisma-client.js"
-import type { Review } from "@prisma/client"
+import "dotenv/config";
+import { prisma } from "../prisma-client.js";
 
 async function seed() {
-    // 1. Create Countries
-    const usa = await prisma.country.create({
-        data: {
-            name: "United States",
-            countryCode: "US"
-        }
-    });
 
-    const denmark = await prisma.country.create({
-        data: {
-            name: "Denmark",
-            countryCode: "DK"
-        }
-    });
+  // ── 1. COUNTRIES ───────────────────────────────────────────────────────────
+  const usa = await prisma.country.create({
+    data: { name: "United States", countryCode: "US" },
+  });
 
-    // 2. Create Roles
-    const adminRole = await prisma.role.create({
-        data: {
-            role: "Admin"
-        }
-    });
+  const denmark = await prisma.country.create({
+    data: { name: "Denmark", countryCode: "DK" },
+  });
 
-    const userRole = await prisma.role.create({
-        data: {
-            role: "User"
-        }
-    });
+  const germany = await prisma.country.create({
+    data: { name: "Germany", countryCode: "DE" },
+  });
 
-    // 3. Create Users
-    const bob = await prisma.user.create({
-        data: {
-            email: "bob@example.com",
-            firstName: "Bob",
-            lastName: "Smith",
-            roleId: userRole.id,
-            countryId: usa.id
-        }
-    });
+  const france = await prisma.country.create({
+    data: { name: "France", countryCode: "FR" },
+  });
 
-    const alice = await prisma.user.create({
-        data: {
-            email: "alice@example.com",
-            firstName: "Alice",
-            lastName: "Johnson",
-            roleId: adminRole.id,
-            countryId: denmark.id
-        }
-    });
+  const sweden = await prisma.country.create({
+    data: { name: "Sweden", countryCode: "SE" },
+  });
 
-    // 4. Create Brands
-    const nike = await prisma.brand.create({
-        data: {
-            name: "Nike",
-            countryId: usa.id
-        }
-    });
+  // ── 2. ROLES ───────────────────────────────────────────────────────────────
+  const adminRole = await prisma.role.create({ data: { role: "Admin" } });
+  const userRole  = await prisma.role.create({ data: { role: "User" } });
 
-    const adidas = await prisma.brand.create({
-        data: {
-            name: "Adidas",
-            countryId: denmark.id
-        }
-    });
+  // ── 3. USERS ───────────────────────────────────────────────────────────────
+  const bob = await prisma.user.create({
+    data: {
+      email:     "bob@example.com",
+      firstName: "Bob",
+      lastName:  "Smith",
+      roleId:    userRole.id,
+      countryId: usa.id,
+    },
+  });
 
-    const ganni = await prisma.brand.create({
-        data: {
-            name: "Ganni",
-            countryId: denmark.id
-        }
-    });
+  const alice = await prisma.user.create({
+    data: {
+      email:     "alice@example.com",
+      firstName: "Alice",
+      lastName:  "Johnson",
+      roleId:    adminRole.id,
+      countryId: denmark.id,
+    },
+  });
 
-    // 5. Create Categories
-    const shoes = await prisma.category.create({
-        data: {
-            name: "Shoes"
-        }
-    });
+  const sofia = await prisma.user.create({
+    data: {
+      email:     "sofia.berg@example.com",
+      firstName: "Sofia",
+      lastName:  "Berg",
+      roleId:    userRole.id,
+      countryId: sweden.id,
+    },
+  });
 
-    const clothing = await prisma.category.create({
-        data: {
-            name: "Clothing"
-        }
-    });
+  const noah = await prisma.user.create({
+    data: {
+      email:     "noah.lindqvist@example.com",
+      firstName: "Noah",
+      lastName:  "Lindqvist",
+      roleId:    userRole.id,
+      countryId: sweden.id,
+    },
+  });
 
-    const accessories = await prisma.category.create({
-        data: {
-            name: "Accessories"
-        }
-    });
+  // ── 4. BRANDS ──────────────────────────────────────────────────────────────
+  const nike = await prisma.brand.create({
+    data: { name: "Nike", countryId: usa.id },
+  });
 
-    // 6. Create Items
-    const airJordan = await prisma.item.create({
-        data: {
-            name: "Air Jordan 1",
-            price: 170.00,
-            categoryId: shoes.id
-        }
-    });
+  const adidas = await prisma.brand.create({
+    data: { name: "Adidas", countryId: germany.id },
+  });
 
-    const ultraBoost = await prisma.item.create({
-        data: {
-            name: "Ultra Boost",
-            price: 180.00,
-            categoryId: shoes.id
-        }
-    });
+  const ganni = await prisma.brand.create({
+    data: { name: "Ganni", countryId: denmark.id },
+  });
 
-    const hoodie = await prisma.item.create({
-        data: {
-            name: "Classic Hoodie",
-            price: 65.00,
-            categoryId: clothing.id
-        }
-    });
+  const apc = await prisma.brand.create({
+    data: { name: "A.P.C.", countryId: france.id },
+  });
 
-    const watch = await prisma.item.create({
-        data: {
-            name: "Minimalist Watch",
-            price: 250.00,
-            categoryId: accessories.id
-        }
-    });
+  const acneStudios = await prisma.brand.create({
+    data: { name: "Acne Studios", countryId: sweden.id },
+  });
 
-    // 7. Create ItemBrand relationships (brand collaborations)
-    await prisma.itemBrand.create({
-        data: {
-            itemId: airJordan.id,
-            brandId: nike.id
-        }
-    });
+  // ── 5. CATEGORIES ──────────────────────────────────────────────────────────
+  const shoes       = await prisma.category.create({ data: { name: "Shoes" } });
+  const clothing    = await prisma.category.create({ data: { name: "Clothing" } });
+  const accessories = await prisma.category.create({ data: { name: "Accessories" } });
+  const outerwear   = await prisma.category.create({ data: { name: "Outerwear" } });
+  const activewear  = await prisma.category.create({ data: { name: "Activewear" } });
 
-    await prisma.itemBrand.create({
-        data: {
-            itemId: ultraBoost.id,
-            brandId: adidas.id
-        }
-    });
+  // ── 6. ITEMS ───────────────────────────────────────────────────────────────
+  const airJordan = await prisma.item.create({
+    data: { name: "Air Jordan 1", price: 170.00, categoryId: shoes.id },
+  });
 
-    // Collaboration example: Nike x Adidas hoodie
-    await prisma.itemBrand.create({
-        data: {
-            itemId: hoodie.id,
-            brandId: nike.id
-        }
-    });
+  const ultraBoost = await prisma.item.create({
+    data: { name: "Ultra Boost", price: 180.00, categoryId: shoes.id },
+  });
 
-    await prisma.itemBrand.create({
-        data: {
-            itemId: hoodie.id,
-            brandId: adidas.id
-        }
-    });
+  const hoodie = await prisma.item.create({
+    data: { name: "Classic Hoodie", price: 65.00, categoryId: clothing.id },
+  });
 
-    await prisma.itemBrand.create({
-        data: {
-            itemId: watch.id,
-            brandId: ganni.id
-        }
-    });
+  const watch = await prisma.item.create({
+    data: { name: "Minimalist Watch", price: 250.00, categoryId: accessories.id },
+  });
 
-    // 8. Create Images for Items
-    await prisma.image.create({
-        data: {
-            url: "https://example.com/airjordan1.jpg",
-            itemId: airJordan.id
-        }
-    });
+  const woolOvercoat = await prisma.item.create({
+    data: { name: "Wool Overcoat", price: 420.00, categoryId: outerwear.id },
+  });
 
-    await prisma.image.create({
-        data: {
-            url: "https://example.com/ultraboost.jpg",
-            itemId: ultraBoost.id
-        }
-    });
+  const summerDress = await prisma.item.create({
+    data: { name: "Floral Summer Dress", price: 135.00, categoryId: clothing.id },
+  });
 
-    await prisma.image.create({
-        data: {
-            url: "https://example.com/hoodie.jpg",
-            itemId: hoodie.id
-        }
-    });
+  const runningShorts = await prisma.item.create({
+    data: { name: "Running Shorts", price: 45.00, categoryId: activewear.id },
+  });
 
-    // 9. Create Closets
-    const bobCloset = await prisma.closet.create({
-        data: {
-            name: "Bob's Wardrobe",
-            description: "My everyday collection",
-            isPublic: true,
-            userId: bob.id
-        }
-    });
+  const silkBlouse = await prisma.item.create({
+    data: { name: "Silk Blouse", price: 175.00, categoryId: clothing.id },
+  });
 
-    const aliceCloset = await prisma.closet.create({
-        data: {
-            name: "Alice's Premium Collection",
-            description: "High-end fashion pieces",
-            isPublic: false,
-            userId: alice.id
-        }
-    });
+  // ── 7. ITEM BRANDS (supports collabs — multiple brands per item) ───────────
+  // Air Jordan → Nike
+  await prisma.itemBrand.create({ data: { itemId: airJordan.id, brandId: nike.id } });
 
-    // 10. Create ClosetItems
-    const bobAirJordan = await prisma.closetItem.create({
-        data: {
-            itemId: airJordan.id,
-            closetId: bobCloset.id
-        }
-    });
+  // Ultra Boost → Adidas
+  await prisma.itemBrand.create({ data: { itemId: ultraBoost.id, brandId: adidas.id } });
 
-    const bobHoodie = await prisma.closetItem.create({
-        data: {
-            itemId: hoodie.id,
-            closetId: bobCloset.id
-        }
-    });
+  // Classic Hoodie → Nike x Adidas collab
+  await prisma.itemBrand.create({ data: { itemId: hoodie.id, brandId: nike.id } });
+  await prisma.itemBrand.create({ data: { itemId: hoodie.id, brandId: adidas.id } });
 
-    const aliceUltraBoost = await prisma.closetItem.create({
-        data: {
-            itemId: ultraBoost.id,
-            closetId: aliceCloset.id
-        }
-    });
+  // Watch → Ganni
+  await prisma.itemBrand.create({ data: { itemId: watch.id, brandId: ganni.id } });
 
-    const aliceWatch = await prisma.closetItem.create({
-        data: {
-            itemId: watch.id,
-            closetId: aliceCloset.id
-        }
-    });
+  // Wool Overcoat → Acne Studios
+  await prisma.itemBrand.create({ data: { itemId: woolOvercoat.id, brandId: acneStudios.id } });
 
-    // 11. Create Outfits
-    const casualOutfit = await prisma.outfit.create({
-        data: {
-            name: "Casual Friday",
-            style: "Streetwear",
-            createdBy: bob.id
-        }
-    });
+  // Summer Dress → Ganni
+  await prisma.itemBrand.create({ data: { itemId: summerDress.id, brandId: ganni.id } });
 
-    const premiumOutfit = await prisma.outfit.create({
-        data: {
-            name: "Evening Elegance",
-            style: "Formal",
-            createdBy: alice.id
-        }
-    });
+  // Silk Blouse → A.P.C. x Ganni collab
+  await prisma.itemBrand.create({ data: { itemId: silkBlouse.id, brandId: apc.id } });
+  await prisma.itemBrand.create({ data: { itemId: silkBlouse.id, brandId: ganni.id } });
 
-    // 12. Create OutfitItems (linking closet items to outfits)
-    await prisma.outfitItem.create({
-        data: {
-            outfitId: casualOutfit.id,
-            closetItemId: bobAirJordan.id
-        }
-    });
+  // Running Shorts → Nike
+  await prisma.itemBrand.create({ data: { itemId: runningShorts.id, brandId: nike.id } });
 
-    await prisma.outfitItem.create({
-        data: {
-            outfitId: casualOutfit.id,
-            closetItemId: bobHoodie.id
-        }
-    });
+  // ── 8. IMAGES ──────────────────────────────────────────────────────────────
+  await prisma.image.create({ data: { url: "https://example.com/airjordan1.jpg",  itemId: airJordan.id } });
+  await prisma.image.create({ data: { url: "https://example.com/ultraboost.jpg",  itemId: ultraBoost.id } });
+  await prisma.image.create({ data: { url: "https://example.com/hoodie.jpg",      itemId: hoodie.id } });
+  await prisma.image.create({ data: { url: "https://example.com/watch.jpg",       itemId: watch.id } });
+  await prisma.image.create({ data: { url: "https://example.com/overcoat.jpg",    itemId: woolOvercoat.id } });
+  await prisma.image.create({ data: { url: "https://example.com/dress.jpg",       itemId: summerDress.id } });
 
-    await prisma.outfitItem.create({
-        data: {
-            outfitId: premiumOutfit.id,
-            closetItemId: aliceUltraBoost.id
-        }
-    });
+  // ── 9. CLOSETS ─────────────────────────────────────────────────────────────
+  const bobCloset = await prisma.closet.create({
+    data: {
+      name:        "Bob's Wardrobe",
+      description: "My everyday collection",
+      isPublic:    true,
+      userId:      bob.id,
+    },
+  });
 
-    await prisma.outfitItem.create({
-        data: {
-            outfitId: premiumOutfit.id,
-            closetItemId: aliceWatch.id
-        }
-    });
+  const aliceCloset = await prisma.closet.create({
+    data: {
+      name:        "Alice's Premium Collection",
+      description: "High-end fashion pieces",
+      isPublic:    false,
+      userId:      alice.id,
+    },
+  });
 
-    // 13. Create Reviews
-    const reviews: Review[] = [];
-    const bobReview = await prisma.review.create({
-        data: {
-            score: 5,
-            text: "Amazing shoes! Super comfortable and stylish.",
-            writtenBy: bob.id
-        }
-    });
+  const sofiaCloset = await prisma.closet.create({
+    data: {
+      name:        "Sofia's Summer Picks",
+      description: "Light and breezy looks",
+      isPublic:    true,
+      userId:      sofia.id,
+    },
+  });
 
-    const aliceReview = await prisma.review.create({
-        data: {
-            score: 4,
-            text: "Great quality, a bit pricey but worth it.",
-            writtenBy: alice.id
-        }
-    });
-    reviews.push(bobReview, aliceReview);
+  const noahCloset = await prisma.closet.create({
+    data: {
+      name:        "Noah's Streetwear",
+      description: "Urban street style",
+      isPublic:    true,
+      userId:      noah.id,
+    },
+  });
 
-    // 14. Create SharedClosets
-    const bobSharedWithAlice = await prisma.sharedCloset.create({
-        data: {
-            closetId: bobCloset.id,
-            userId: alice.id
-        }
-    });
+  // ── 10. CLOSET ITEMS ───────────────────────────────────────────────────────
+  const bobAirJordan  = await prisma.closetItem.create({ data: { itemId: airJordan.id,    closetId: bobCloset.id } });
+  const bobHoodie     = await prisma.closetItem.create({ data: { itemId: hoodie.id,       closetId: bobCloset.id } });
+  const bobShorts     = await prisma.closetItem.create({ data: { itemId: runningShorts.id, closetId: bobCloset.id } });
 
+  const aliceUltraBoost = await prisma.closetItem.create({ data: { itemId: ultraBoost.id, closetId: aliceCloset.id } });
+  const aliceWatch      = await prisma.closetItem.create({ data: { itemId: watch.id,      closetId: aliceCloset.id } });
+  const aliceBlouse     = await prisma.closetItem.create({ data: { itemId: silkBlouse.id, closetId: aliceCloset.id } });
 
-    console.log({
-        users: { bob, alice },
-        countries: { usa, denmark },
-        roles: { adminRole, userRole },
-        brands: { nike, adidas, ganni },
-        categories: { shoes, clothing, accessories },
-        items: { airJordan, ultraBoost, hoodie, watch },
-        closets: { bobCloset, aliceCloset },
-        outfits: { casualOutfit, premiumOutfit },
-        reviews: { reviews },
-        sharedClosets: { bobSharedWithAlice }
-    });
-    console.log("✅ Database seeded successfully!");
+  const sofiaDress    = await prisma.closetItem.create({ data: { itemId: summerDress.id,  closetId: sofiaCloset.id } });
+  const sofiaOvercoat = await prisma.closetItem.create({ data: { itemId: woolOvercoat.id, closetId: sofiaCloset.id } });
+
+  const noahHoodie    = await prisma.closetItem.create({ data: { itemId: hoodie.id,       closetId: noahCloset.id } });
+  const noahJordan    = await prisma.closetItem.create({ data: { itemId: airJordan.id,    closetId: noahCloset.id } });
+
+  // ── 11. OUTFITS ────────────────────────────────────────────────────────────
+  const casualOutfit = await prisma.outfit.create({
+    data: { name: "Casual Friday",    style: "Streetwear", createdBy: bob.id },
+  });
+
+  const premiumOutfit = await prisma.outfit.create({
+    data: { name: "Evening Elegance", style: "Formal",     createdBy: alice.id },
+  });
+
+  const summerOutfit = await prisma.outfit.create({
+    data: { name: "Summer Festival",  style: "Bohemian",   createdBy: sofia.id },
+  });
+
+  const streetOutfit = await prisma.outfit.create({
+    data: { name: "Street Ready",     style: "Streetwear", createdBy: noah.id },
+  });
+
+  // ── 12. OUTFIT ITEMS (links closet items to outfits) ───────────────────────
+  await prisma.outfitItem.create({ data: { outfitId: casualOutfit.id,  closetItemId: bobAirJordan.id } });
+  await prisma.outfitItem.create({ data: { outfitId: casualOutfit.id,  closetItemId: bobHoodie.id } });
+  await prisma.outfitItem.create({ data: { outfitId: casualOutfit.id,  closetItemId: bobShorts.id } });
+
+  await prisma.outfitItem.create({ data: { outfitId: premiumOutfit.id, closetItemId: aliceUltraBoost.id } });
+  await prisma.outfitItem.create({ data: { outfitId: premiumOutfit.id, closetItemId: aliceWatch.id } });
+  await prisma.outfitItem.create({ data: { outfitId: premiumOutfit.id, closetItemId: aliceBlouse.id } });
+
+  await prisma.outfitItem.create({ data: { outfitId: summerOutfit.id,  closetItemId: sofiaDress.id } });
+  await prisma.outfitItem.create({ data: { outfitId: summerOutfit.id,  closetItemId: sofiaOvercoat.id } });
+
+  await prisma.outfitItem.create({ data: { outfitId: streetOutfit.id,  closetItemId: noahHoodie.id } });
+  await prisma.outfitItem.create({ data: { outfitId: streetOutfit.id,  closetItemId: noahJordan.id } });
+
+  // ── 13. REVIEWS ────────────────────────────────────────────────────────────
+  // outfitId is required in the schema — was missing in the original seed
+  const bobReview = await prisma.review.create({
+    data: {
+      score:     5,
+      text:      "Amazing shoes! Super comfortable and stylish.",
+      writtenBy: bob.id,
+      outfitId:  casualOutfit.id,
+    },
+  });
+
+  const aliceReview = await prisma.review.create({
+    data: {
+      score:     4,
+      text:      "Great quality, a bit pricey but worth it.",
+      writtenBy: alice.id,
+      outfitId:  premiumOutfit.id,
+    },
+  });
+
+  const sofiaReview = await prisma.review.create({
+    data: {
+      score:     5,
+      text:      "The color palette is chef's kiss.",
+      writtenBy: sofia.id,
+      outfitId:  summerOutfit.id,
+    },
+  });
+
+  const noahReview = await prisma.review.create({
+    data: {
+      score:     4,
+      text:      "Bold choices but it really works!",
+      writtenBy: noah.id,
+      outfitId:  streetOutfit.id,
+    },
+  });
+
+  // ── 14. SHARED CLOSETS ─────────────────────────────────────────────────────
+  // Bob shares his wardrobe with Alice — mirrors original seed
+  const bobSharedWithAlice = await prisma.sharedCloset.create({
+    data: { closetId: bobCloset.id, userId: alice.id },
+  });
+
+  // Sofia shares her closet with Noah
+  const sofiaSharedWithNoah = await prisma.sharedCloset.create({
+    data: { closetId: sofiaCloset.id, userId: noah.id },
+  });
+
+  // ── Summary ────────────────────────────────────────────────────────────────
+  console.log({
+    countries:    { usa, denmark, germany, france, sweden },
+    roles:        { adminRole, userRole },
+    users:        { bob, alice, sofia, noah },
+    brands:       { nike, adidas, ganni, apc, acneStudios },
+    categories:   { shoes, clothing, accessories, outerwear, activewear },
+    items:        { airJordan, ultraBoost, hoodie, watch, woolOvercoat, summerDress, runningShorts, silkBlouse },
+    closets:      { bobCloset, aliceCloset, sofiaCloset, noahCloset },
+    outfits:      { casualOutfit, premiumOutfit, summerOutfit, streetOutfit },
+    reviews:      { bobReview, aliceReview, sofiaReview, noahReview },
+    sharedClosets:{ bobSharedWithAlice, sofiaSharedWithNoah },
+  });
+  console.log("✅ Database seeded successfully!");
 }
 
 seed()
   .then(async () => {
-    await prisma.$disconnect()
+    await prisma.$disconnect();
   })
   .catch(async (e) => {
-    console.error(e)
-    await prisma.$disconnect()
-    process.exit(1)
-  })
+    console.error(e);
+    await prisma.$disconnect();
+    process.exit(1);
+  });
