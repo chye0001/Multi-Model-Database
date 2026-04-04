@@ -248,7 +248,8 @@ export class PostgresUserRepository implements IUserRepository {
             description: closet.description,
             isPublic: closet.isPublic,
             createdAt: closet.createdAt,
-            userId: closet.userId
+            userId: closet.userId,
+            fromDatabase: "PostgreSQL"
         };
     }
 
@@ -260,7 +261,8 @@ export class PostgresUserRepository implements IUserRepository {
             datedAdded: outfit.dateAdded,
             createdBy: outfit.createdBy,
             items: outfit.outfitItems?.map((outfitItem: any) => this.formatClothingItem(outfitItem.closetItem?.item)) || [],
-            reviews: outfit.reviews?.map((review: any) => this.formatUserReview(review)) || []
+            reviews: outfit.reviews?.map((review: any) => this.formatUserReview(review)) || [],
+            fromDatabase: "PostgreSQL"
         };
     }
 
@@ -316,7 +318,8 @@ export class PostgresUserRepository implements IUserRepository {
             score: review.score,
             text: review.text,
             dateWritten: review.dateWritten,
-            writtenBy: review.writtenBy
+            writtenBy: review.writtenBy,
+            fromDatabase: "PostgreSQL"
         };
     }
 
@@ -329,7 +332,8 @@ export class PostgresUserRepository implements IUserRepository {
             createdAt: closet.createdAt,
             userId: closet.userId, // owner of the closet
             sharedWith: closet.sharedCloset?.map((shared: any) => shared.userId) || [], // users the closet is shared with
-            itemIds: closet.closetItem?.map((item: any) => Number(item.id)) || []
+            itemIds: closet.closetItem?.map((item: any) => Number(item.id)) || [],
+            fromDatabase: "PostgreSQL"
         };
     }
     //---------------------------------------------------------------------------------------------

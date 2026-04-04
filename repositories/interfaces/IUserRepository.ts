@@ -19,6 +19,7 @@ export type Closet = {
   isPublic: boolean;
   createdAt: Date;
   userId: string;
+  fromDatabase?: string; // just to distinguish the source of the data, not a real field in the database
 }
 
 export type Outfit = {
@@ -29,6 +30,7 @@ export type Outfit = {
   createdBy: string; // userId
   items: ClothingItem[];
   reviews: Review[];
+  fromDatabase?: string; // just to distinguish the source of the data, not a real field in the database
 }
 
 export type ClothingItem = {
@@ -64,6 +66,7 @@ export type Review = {
   dateWritten: Date;
   outfitId?: number;
   writtenBy: string; // userId
+  fromDatabase?: string; // just to distinguish the source of the data, not a real field in the database
 }
 
 export type SharedCloset = {
@@ -75,6 +78,7 @@ export type SharedCloset = {
   userId: string; // userId of the owner of the closet
   sharedWith: string[]; // array of userIds that the closet is shared with
   itemIds: number[];
+  fromDatabase?: string; // just to distinguish the source of the data, not a real field in the database
 }
 
 export interface IUserRepository {
