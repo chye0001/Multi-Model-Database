@@ -45,7 +45,7 @@ export class PostgresUserRepository implements IUserRepository {
             });
 
             if (!user) {
-                throw new Error(`User with id ${id} not found`);
+                return [];
             }
 
             return [this.formatUser(user)];

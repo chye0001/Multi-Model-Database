@@ -14,7 +14,7 @@ const userController = new UserController(userService);
 router.get('/', userController.getAllUsers);
 router.get('/:id', userController.getUserById);
 router.post('/', userController.createUser);
-router.patch('/:id', userController.updateUser);
+router.put('/:id', userController.updateUser);
 router.delete('/:id', userController.deleteUser);
 
 // 3. Sub-resource Routes

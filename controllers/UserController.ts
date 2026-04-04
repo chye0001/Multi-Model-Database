@@ -10,14 +10,23 @@ export class UserController {
   };
 
   getUserById = async (req: Request, res: Response) => {
-    const userId = req.params.id as string;
-    if (!userId) {
-      return res.status(400).send({ error: "User ID is required" });
-    } 
+    try {
+      const userId = req.params.id as string;
+      if (!userId) {
+        return res.status(400).send({ error: "User ID is required" });
+      }
 
-    const user = await this.userService.getUserById(userId);
-    if (!user) return res.status(404).send({ error: "User not found" });
-    res.send(user);
+      const user = await this.userService.getUserById(userId);
+      if (!user || (Array.isArray(user) && user.length === 0)) {
+        return res.status(404).send({ error: "User not found" });
+      }
+
+      res.send(user);
+      
+    } catch (error: any) {
+      console.error(`Error in getUserById controller for ID ${req.params.id}:`, error);
+      res.status(500).send({ error: error?.message ?? "Internal Server Error" });
+    }
   };
 
   createUser = async (req: Request, res: Response) => {
