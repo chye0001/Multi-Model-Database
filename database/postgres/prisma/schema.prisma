@@ -56,6 +56,7 @@ model Outfit {
   user User @relation(fields: [createdBy], references: [id])
 
   outfitItems OutfitItem[]
+  reviews Review[]
 }
 
 model OutfitItem {
@@ -78,7 +79,11 @@ model Review {
   text String
 
   writtenBy String @db.Uuid
+  dateWritten DateTime @default(now()) // todo add this to the report in the model
   user User @relation(fields: [writtenBy], references: [id])
+
+  outfitId BigInt
+  outfit Outfit @relation(fields: [outfitId], references: [id], onDelete: Cascade)
 }
 
 model Brand {
