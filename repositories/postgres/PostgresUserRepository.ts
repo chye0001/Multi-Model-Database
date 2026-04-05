@@ -1,15 +1,11 @@
-import type { 
-    IUserRepository,
-    User,
-    ClothingItem,
-    ItemImage,
-    Brand,
-    Country,
-    Closet,
-    Outfit, 
-    Review, 
-    SharedCloset 
-} from '../interfaces/IUserRepository.js';
+import type { IUserRepository } from '../interfaces/IUserRepository.js';
+
+import type { User } from '../../dtos/users/User.dto.js';
+import type { Closet, SharedCloset } from '../../dtos/closets/Closet.dto.js';
+import type { Outfit } from '../../dtos/outfits/Outfit.dto.js';
+import type { Review } from '../../dtos/reviews/Review.dto.js';
+import type { ClothingItem, ItemImage } from '../../dtos/items/Item.dto.js';
+import type { Brand } from '../../dtos/brands/Brand.dto.js';
 
 import { prisma } from '../../database/postgres/prisma-client.js';
 
