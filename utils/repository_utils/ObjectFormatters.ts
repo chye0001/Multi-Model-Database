@@ -105,6 +105,10 @@ export function formatUserOutfit(outfit: any, database: string): Outfit {
 export function formatUserReview(review: any, database: string): Review {
     const databaseName = database.toLowerCase();
 
+    if (databaseName === "mongodb") {
+        delete review.writtenBy._id;
+    }
+
     return {
         id: Number(review.id),
         outfitId: databaseName === "postgresql" ? Number(review.outfitId) :
