@@ -5,6 +5,8 @@ export type Closet = {
   isPublic: boolean;
   createdAt: Date;
   userId: string;
+  itemIds: number[];
+  sharedWith: string[];
   fromDatabase?: string; // just to distinguish the source of the data, not a real field in the database
 }
 

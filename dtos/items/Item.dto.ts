@@ -7,7 +7,7 @@ export type ClothingItem = {
   name: string;
   price?: number | null;
   category: string;
-  brand: Brand;
+  brands: Brand[];
   images: ItemImage[];
 }
 
