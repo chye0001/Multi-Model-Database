@@ -14,6 +14,7 @@ export class UserService {
   }
 
   async createUser(data: Partial<any>): Promise<any[]> {
+    data.id = data.id ?? crypto.randomUUID();
     return await this.userRepository.createUser(data);
   }
 

@@ -1,17 +1,19 @@
 import mongoose, { Schema, Document, Model } from "mongoose";
+import { stripInternalIdField } from "../../../../utils/repository_utils/MongooseUtil.js";
+
+
 
 // import type { ICategory } from "../clothings/Category.model.js";
 // import { CategorySchema } from "../clothings/Category.model.js";
 
-// Item.model.ts — define a separate embedded shape, don't reuse CategorySchema
 export interface IEmbeddedCategory {
-  id: string;   // uuid copied from the category document
+  id: number;   // id copied from the category document
   name: string; // denormalised name for fast reads
 }
 
 const EmbeddedCategorySchema = new Schema<IEmbeddedCategory>(
   {
-    id:   { type: String, required: true }, // uuid reference to categories collection
+    id:   { type: Number, required: true, unique: true }, // id reference to categories collection
     name: { type: String, required: true, trim: true },
   },
   {
@@ -20,13 +22,13 @@ const EmbeddedCategorySchema = new Schema<IEmbeddedCategory>(
 );
 
 export interface IImage {
-  id: string;
+  id: number;
   url: string;
 }
 
 const ImageSchema = new Schema<IImage>(
   {
-    id:  { type: String, required: true },
+    id:  { type: Number, required: true, unique: true },
     url: { type: String, required: true, trim: true },
   },
   {
@@ -38,7 +40,7 @@ const ImageSchema = new Schema<IImage>(
 
 
 export interface IItem extends Document {
-  id: string;
+  id: number;
   name: string;
   price: number | null;
   category: IEmbeddedCategory;
@@ -48,7 +50,7 @@ export interface IItem extends Document {
 
 const ItemSchema = new Schema<IItem>(
   {
-    id:       { type: String, required: true, unique: true },
+    id:       { type: Number, required: true, unique: true },
     name:     { type: String, required: true, trim: true },
     price:    { type: Number, default: null },
     category: { type: EmbeddedCategorySchema, required: true },
@@ -59,6 +61,7 @@ const ItemSchema = new Schema<IItem>(
     versionKey: false,
      // 1. Disable the built-in Mongoose 'id' virtual to avoid conflict with your UUID 'id'
     id: false, 
+    toJSON: { transform: stripInternalIdField }
   }
 );
 

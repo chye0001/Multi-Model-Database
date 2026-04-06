@@ -1,4 +1,4 @@
-import { isRepositoriesEnabled } from '../../utils/repository_utils/utils.js';
+import { isRepositoriesEnabled } from '../../utils/repository_utils/ErrorHandling.js';
 
 import type { IUserRepository } from '../interfaces/IUserRepository.js';
 

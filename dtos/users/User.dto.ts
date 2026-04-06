@@ -12,3 +12,10 @@ export type User = {
   country: Country;
   fromDatabase?: string; // just to distinguish the source of the data, not a real field in the database
 };
+
+export type UpdateUserData = {
+  firstName: string;
+  lastName: string;
+  countryId: number;
+  country?: any;
+}

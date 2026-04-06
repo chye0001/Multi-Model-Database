@@ -7,7 +7,7 @@ export type Outfit = {
   id: number;
   name: string;
   style: string;
-  datedAdded: Date;
+  dateAdded: Date;
   createdBy: string; // userId
   items: ClothingItem[];
   reviews: Review[];
