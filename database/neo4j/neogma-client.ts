@@ -62,14 +62,14 @@ export async function connectNeo4j(): Promise<void> {
     try {
       await neogma.verifyConnectivity();
       isConnected = true;
-      console.log(`[Neo4j] Connected on attempt ${attempt}`);
+      console.log(`[Neo4j / Neogma] Connected on attempt ${attempt}`);
       break;
 
     } catch (error) {
-      console.warn(`[Neo4j] Connection attempt ${attempt}/${MAX_RETRIES} failed. Retrying in ${DELAY_MS}ms...`);
+      console.warn(`[Neo4j / Neogma] Connection attempt ${attempt}/${MAX_RETRIES} failed. Retrying in ${DELAY_MS}ms...`);
 
       if (attempt === MAX_RETRIES) {
-        throw new Error(`[Neo4j] Failed to connect after ${MAX_RETRIES} attempts`);
+        throw new Error(`[Neo4j / Neogma] Failed to connect after ${MAX_RETRIES} attempts`);
       }
 
       await new Promise((res) => setTimeout(res, DELAY_MS));
@@ -81,9 +81,9 @@ export async function disconnectNeo4j(): Promise<void> {
   try {    
     await neogma.driver.close();
     isConnected = false;
-    console.log("Neo4j connection closed");
+    console.log("[Neo4j / Neogma] connection closed");
 
   } catch (error) {
-    console.error("Failed to disconnect Neo4j:", error);
+    console.error("[Neo4j / Neogma] Failed to disconnect:", error);
   }
 }

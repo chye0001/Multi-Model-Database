@@ -119,8 +119,8 @@ model Item {
   categoryId Int
   category Category @relation(fields: [categoryId], references: [id])
   
-  itemBrand ItemBrand[]
-  image Image[]
+  itemBrands ItemBrand[]
+  images Image[]
   closetItem ClosetItem[]
 }
 

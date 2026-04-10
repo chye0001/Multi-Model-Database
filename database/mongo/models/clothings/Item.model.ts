@@ -13,7 +13,7 @@ export interface IEmbeddedCategory {
 
 const EmbeddedCategorySchema = new Schema<IEmbeddedCategory>(
   {
-    id:   { type: Number, required: true, unique: true }, // id reference to categories collection
+    id:   { type: Number, required: true }, // id reference to categories collection
     name: { type: String, required: true, trim: true },
   },
   {
@@ -28,7 +28,7 @@ export interface IImage {
 
 const ImageSchema = new Schema<IImage>(
   {
-    id:  { type: Number, required: true, unique: true },
+    id:  { type: Number, required: true },
     url: { type: String, required: true, trim: true },
   },
   {

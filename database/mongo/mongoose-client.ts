@@ -14,7 +14,7 @@ if (!DB_NAME) throw new Error(`MONGO_DB_${env.toUpperCase()} is not defined`);
 
 export async function connectMongo(): Promise<void> {
   if (mongoose.connection.readyState === 1) {
-    console.log("[mongoose] Already connected");
+    console.log("[Mongo / Mongoose] Already connected");
     return;
   }
 
@@ -23,14 +23,14 @@ export async function connectMongo(): Promise<void> {
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
     try {
       await mongoose.connect(URI as string, { dbName: DB_NAME as string });
-      console.log(`[mongoose] Connected to ${DB_NAME} on attempt ${attempt}`);
+      console.log(`[Mongo / Mongoose] Connected to ${DB_NAME} on attempt ${attempt}`);
       break;
 
     } catch (error) {
-      console.warn(`[mongoose] Connection attempt ${attempt}/${MAX_RETRIES} failed. Retrying in ${DELAY_MS}ms...`);
+      console.warn(`[Mongo / Mongoose] Connection attempt ${attempt}/${MAX_RETRIES} failed. Retrying in ${DELAY_MS}ms...`);
       
       if (attempt === MAX_RETRIES) {
-        throw new Error(`[mongoose] Failed to connect after ${MAX_RETRIES} attempts: ${error}`);
+        throw new Error(`[Mongo / Mongoose] Failed to connect after ${MAX_RETRIES} attempts: ${error}`);
       }
 
       await new Promise((res) => setTimeout(res, DELAY_MS));
@@ -41,9 +41,9 @@ export async function connectMongo(): Promise<void> {
 export async function disconnectMongo(): Promise<void> {
   try {
     await mongoose.disconnect();
-    console.log("[mongoose] Disconnected");
+    console.log("[Mongo / Mongoose] Disconnected");
     
   } catch (error) {
-    console.error("[mongoose] Disconnection error:", error);
+    console.error("[Mongo / Mongoose] Disconnection error:", error);
   }
 }
