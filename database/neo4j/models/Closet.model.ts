@@ -6,9 +6,6 @@ import { neogma } from "../neogma-client.js";
 import { getItemModel } from "./Item.model.js";
 import type { ItemInstance } from "./Item.model.js";
 
-import { getOutfitModel } from "./Outfit.model.js";
-import type { OutfitInstance } from "./Outfit.model.js";
-
 // ─────────────────────────────────────────────
 // Interfaces
 // ─────────────────────────────────────────────
@@ -34,19 +31,6 @@ export interface ClosetRelatedNodes {
   items: ModelRelatedNodesI<
     ReturnType<typeof getItemModel>,
     ItemInstance
-  >;
-  /**
-   * Closet -[:CREATES]-> Outfit  (one-to-many; relationship carries createdAt)
-   * The CREATES relationship records when a closet "produced" an outfit.
-   * Analogy: like a join-table with an extra column in SQL.
-   */
-  outfits: ModelRelatedNodesI<
-    ReturnType<typeof getOutfitModel>,
-    OutfitInstance,
-    // CreateRelationshipProperties — what you supply when creating the rel
-    { createdAt: string },
-    // RelationshipProperties — what is actually stored on the rel in Neo4j
-    { createdAt: string }
   >;
 }
 
@@ -89,21 +73,6 @@ function buildClosetModel() {
           model: getItemModel(),
           name: "STORES",
           direction: "out",
-        },
-        // (Closet)-[:CREATES {createdAt}]->(Outfit)
-        outfits: {
-          model: getOutfitModel(),
-          name: "CREATES",
-          direction: "out",
-          properties: {
-            createdAt: {
-              property: "createdAt",
-              schema: {
-                type: "string",
-                required: true,
-              },
-            },
-          },
         },
       },
     },

@@ -262,18 +262,6 @@ async function seed() {
     // (User)-[:CREATES]->(Outfit)
     await userAlice.relateTo({ alias: "outfits", where: { id: outfitCasual.id } });
     await userBob.relateTo({   alias: "outfits", where: { id: outfitSmart.id  } });
-
-    // (Closet)-[:CREATES {createdAt}]->(Outfit)
-    await closetSummer.relateTo({
-      alias:      "outfits",
-      where:      { id: outfitCasual.id },
-      properties: { createdAt: now },
-    });
-    await closetFormal.relateTo({
-      alias:      "outfits",
-      where:      { id: outfitSmart.id },
-      properties: { createdAt: now },
-    });
   });
 
   // ── 10. Reviews ───────────────────────────────────────────────────────────
