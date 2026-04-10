@@ -8,6 +8,7 @@ import { neogma } from "../neogma-client.js";
 // ─────────────────────────────────────────────
 
 export interface CountryProperties {
+  id: number;
   /** Human-readable country name, e.g. "Denmark". Unique + not null. */
   name: string;
   /** ISO 3166-1 alpha-2 code, e.g. "DK". Unique + not null. */
@@ -30,22 +31,26 @@ function buildCountryModel() {
     {
       label: "Country",
       schema: {
+        id: {
+          type: "number",
+          unique: true,
+          required: true,
+        },
         name: {
           type: "string",
           minLength: 1,
           required: true,
+          unique: true,
         },
         countryCode: {
           type: "string",
           minLength: 2,
           maxLength: 3,
           required: true,
+          unique: true
         },
       },
-      // countryCode is chosen as PK because it is the stable, short, canonical
-      // identifier (ISO standard). `name` can change (countries rename),
-      // countryCode almost never does.
-      primaryKeyField: "countryCode",
+      primaryKeyField: "id",
       relationships: {},
     },
     neogma

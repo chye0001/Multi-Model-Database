@@ -10,6 +10,7 @@ import { neogma } from "../neogma-client.js";
 /** Properties stored on a :Role node in Neo4j */
 export interface RoleProperties {
   /** Business identifier — unique across all roles (e.g. "admin", "user"). */
+  id: number;
   name: string;
   [key: string]: any;
 }
@@ -28,18 +29,6 @@ export type RoleInstance = NeogmaInstance<RoleProperties, RoleRelatedNodes>;
 // Model Definition
 // ─────────────────────────────────────────────
 
-/**
- * RoleModel — represents a :Role node.
- *
- * Analogy (since you like them): think of this like a Java entity class
- * annotated with @Entity, except Neogma's ModelFactory is the JPA provider
- * that maps it to the graph instead of a relational table.
- *
- * Lazy-initialised singleton pattern: the first import that calls
- * `getRoleModel()` creates the model; every subsequent call returns the
- * same cached instance. This avoids circular-dependency pitfalls that arise
- * when models reference each other at module load time.
- */
 let _RoleModel: ReturnType<typeof buildRoleModel> | null = null;
 
 function buildRoleModel() {
@@ -49,6 +38,11 @@ function buildRoleModel() {
       // `schema` acts like Bean Validation annotations in Java —
       // Neogma will throw before writing to Neo4j if a rule is violated.
       schema: {
+        id: {
+          type: "number",
+          unique: true,
+          required: true,
+        },
         name: {
           type: "string",
           minLength: 1,
@@ -57,7 +51,7 @@ function buildRoleModel() {
       },
       // The field Neo4j will use as the node's primary key in
       // relationship-creation helpers (.relateTo, createOne with nested data).
-      primaryKeyField: "name",
+      primaryKeyField: "id",
       relationships: {}, // Role has no outgoing relationships
     },
     neogma

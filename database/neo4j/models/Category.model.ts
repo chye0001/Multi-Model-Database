@@ -9,6 +9,7 @@ import { neogma } from "../neogma-client.js";
 
 export interface CategoryProperties {
   /** Category name, e.g. "Shoes". Unique + not null. */
+  id: number;
   name: string;
   [key: string]: any;
 }
@@ -28,13 +29,19 @@ function buildCategoryModel() {
     {
       label: "Category",
       schema: {
+         id: {
+          type: "number",
+          unique: true,
+          required: true,
+        },
         name: {
           type: "string",
           minLength: 1,
+          unique: true,
           required: true,
         },
       },
-      primaryKeyField: "name",
+      primaryKeyField: "id",
       relationships: {},
     },
     neogma

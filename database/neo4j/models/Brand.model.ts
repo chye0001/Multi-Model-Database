@@ -1,7 +1,8 @@
 import { ModelFactory } from "neogma";
-import type { NeogmaInstance } from "neogma";
+import type { ModelRelatedNodesI, NeogmaInstance } from "neogma";
 
 import { neogma } from "../neogma-client.js";
+import { getCountryModel, type CountryInstance } from "./index.js";
 
 // ─────────────────────────────────────────────
 // Interfaces
@@ -9,11 +10,17 @@ import { neogma } from "../neogma-client.js";
 
 export interface BrandProperties {
   /** Brand name, e.g. "Nike". Unique + not null. */
+  id: number;
   name: string;
   [key: string]: any;
 }
 
-export type BrandRelatedNodes = Record<string, never>;
+export interface BrandRelatedNodes {
+  country: ModelRelatedNodesI<
+    ReturnType<typeof getCountryModel>,
+    CountryInstance
+  >;
+}
 
 export type BrandInstance = NeogmaInstance<BrandProperties, BrandRelatedNodes>;
 
@@ -28,14 +35,25 @@ function buildBrandModel() {
     {
       label: "Brand",
       schema: {
+        id: {
+          type: "number",
+          unique: true,
+          required: true,
+        },
         name: {
           type: "string",
           minLength: 1,
           required: true,
         },
       },
-      primaryKeyField: "name",
-      relationships: {},
+      primaryKeyField: "id",
+      relationships: {
+        country: {
+          model: getCountryModel(),
+          name: "IS_FROM",
+          direction: "out",
+        }
+      },
     },
     neogma
   );

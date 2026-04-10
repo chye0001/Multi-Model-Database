@@ -15,7 +15,8 @@
     "prisma:reset": "prisma migrate reset",
     "mongo:seed": "tsx database/mongo/scripts/seed.ts",
     "mongo:reset": "tsx database/mongo/scripts/reset.ts",
-    "neo4j:seed": "tsx database/neo4j/scripts/seed.ts"
+    "neo4j:seed": "tsx database/neo4j/scripts/seed.ts",
+    "neo4j:reset": "tsx database/neo4j/scripts/reset.ts"
   },
   "prisma": {
     "schema": "./database/postgres/prisma/schema.prisma"

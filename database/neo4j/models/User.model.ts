@@ -25,8 +25,8 @@ import type { OutfitInstance } from "./Outfit.model.js";
 //─────────────────────────────────────────────────────────────────────────────────────────
 
 export interface UserProperties {
-  /** Surrogate integer key. Unique + not null. */
-  id: number;
+  /** Surrogate string key. Unique + not null. */
+  id: string;
   /** Not null. */
   firstName: string;
   /** Not null. */
@@ -126,7 +126,8 @@ function buildUserModel() {
       label: "User",
       schema: {
         id: {
-          type: "number",
+          type: "string",
+          unique: true,
           required: true,
         },
         firstName: {

@@ -78,6 +78,7 @@ function buildItemModel() {
       schema: {
         id: {
           type: "number",
+          unique: true,
           required: true,
         },
         name: {

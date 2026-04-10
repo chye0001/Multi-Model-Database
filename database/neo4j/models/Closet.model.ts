@@ -65,6 +65,7 @@ function buildClosetModel() {
       schema: {
         id: {
           type: "number",
+          unique: true,
           required: true,
         },
         name: {

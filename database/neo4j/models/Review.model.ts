@@ -47,6 +47,7 @@ function buildReviewModel() {
       schema: {
         id: {
           type: "number",
+          unique: true,
           required: true,
         },
         score: {
