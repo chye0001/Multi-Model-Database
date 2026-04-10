@@ -252,7 +252,7 @@ export class MongoUserRepository implements IUserRepository {
             return data.role;
         }
 
-        const roleId = data.roleId ?? 2;
+        const roleId = data.roleId ?? 2; // defaults to user
         const roleName = data.roleName ?? this.getRoleName(roleId);
 
         return {
