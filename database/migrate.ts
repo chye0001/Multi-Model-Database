@@ -417,7 +417,7 @@ async function migrate() {
         where: { id: item.category.id },
       });
 
-      // (Item)-[:HAS]->(Brand)  — many-to-many via ItemBrand join table
+      // (Item)-[:BELONGS_TO]->(Brand)  — many-to-many via ItemBrand join table
       for (const ib of item.itemBrands) {
         await itemNode.relateTo({
           alias: "brand",
@@ -472,18 +472,17 @@ async function migrate() {
   });
 
   await step("Neo4j: Closet relationships", async () => {
-    const now = new Date().toISOString();
 
     for (const cl of pgClosets) {
       const closetNode = neo4jClosets.get(Number(cl.id))!;
 
-      // (User)-[:HAS {createdAt}]->(Closet)
+      // (User)-[:CREATES {createdAt}]->(Closet)
       const pgUser   = pgUsers.find((u) => u.id === cl.userId)!;
       const userNode = neo4jUsers.get(pgUser.id)!;
       await userNode.relateTo({
         alias:      "closets",
         where:      { id: closetNode.id },
-        properties: { createdAt: now },
+        properties: { createdAt: cl.createdAt.toISOString() },
       });
 
       // (Closet)-[:STORES]->(Item)
@@ -521,7 +520,6 @@ async function migrate() {
   });
 
   await step("Neo4j: Outfit relationships", async () => {
-    const now = new Date().toISOString();
 
     for (const o of pgOutfits) {
       const outfitNode = neo4jOutfits.get(Number(o.id))!;
@@ -529,7 +527,11 @@ async function migrate() {
       // (User)-[:CREATES]->(Outfit)
       const pgCreator  = pgUsers.find((u) => u.id === o.createdBy)!;
       const userNode   = neo4jUsers.get(pgCreator.id)!;
-      await userNode.relateTo({ alias: "outfits", where: { id: outfitNode.id } });
+      await userNode.relateTo({ 
+        alias: "outfits", 
+        where: { id: outfitNode.id },
+        properties: { createdAt: o.dateAdded.toISOString() }
+      });
 
       // (Outfit)-[:CONTAINS]->(Item)
       // Flatten OutfitItem → ClosetItem → Item

@@ -173,10 +173,10 @@ function buildUserModel() {
           name: "IS_FROM",
           direction: "out",
         },
-        // (User)-[:HAS {createdAt}]->(Closet)
+        // (User)-[:CREATES {createdAt}]->(Closet)
         closets: {
           model: getClosetModel(),
-          name: "HAS",
+          name: "CREATES",
           direction: "out",
           properties: {
             createdAt: {
@@ -215,6 +215,15 @@ function buildUserModel() {
           model: getOutfitModel(),
           name: "CREATES",
           direction: "out",
+          properties: {
+            createdAt: {
+              property: "createdAt",
+              schema: {
+                type: "string",
+                required: true,
+              },
+            },
+          },
         },
       },
     },
