@@ -1,20 +1,26 @@
-import { UserModel } from '../../database/neo4j/models/index.js';
+import { 
+    UserModel, 
+    getRoleModel, 
+    getCountryModel 
+} from '../../database/neo4j/models/index.js';
+import { neogma } from "../../database/neo4j/neogma-client.js";
 import type { IUserRepository } from '../interfaces/IUserRepository.js';
 
+import type { User } from "../../dtos/users/User.dto.js";
+import { formatUser } from '../../utils/repository_utils/ObjectFormatters.js';
 
 
 export class Neo4jUserRepository implements IUserRepository {
 
-    async getAllUsers(): Promise<any[]> {
+    async getAllUsers(): Promise<User[]> {
         try {
-            const users = await UserModel.findMany();
+            const result = await neogma.queryRunner.run(`
+                MATCH (u:User)-[:HAS]->(r:Role)
+                MATCH (u)-[:IS_FROM]->(c:Country)
+                RETURN u, r, c
+            `);
 
-            // const modifiedUsers = users.map(user => ({
-            //     ...user.getProperties(), // extract plain node properties
-            //     fromDatabase: "Neo4j"
-            // }));
-
-            return users;
+            return result.records.map(record => { return formatUser(record, "neo4j"); });
 
         } catch (error) {
             console.error("Error fetching users from Neo4j:", error);

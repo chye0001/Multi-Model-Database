@@ -10,8 +10,8 @@ import type { Brand } from "../../dtos/brands/Brand.dto.js";
 
 export function formatUser(user: any, database: string): User {
     const databaseName = database.toLowerCase();
-    if (databaseName !== "mongodb" && databaseName !== "postgresql") {
-        throw new Error(`Unsupported database name: ${database}. Expected "MongoDB" or "PostgreSQL".`);
+    if (databaseName !== "mongodb" && databaseName !== "postgresql" && databaseName !== "neo4j") {
+        throw new Error(`Unsupported database name: ${database}. Expected "MongoDB", "PostgreSQL", or "Neo4j".`);
     }
 
     if (databaseName === "mongodb") {
@@ -22,22 +22,51 @@ export function formatUser(user: any, database: string): User {
         delete user.country._id;
     }
 
+    let userProperties, roleProperties, countryProperties;
+    if (databaseName === "neo4j") {
+        userProperties = user.get("u").properties;
+        roleProperties = user.get("r").properties;
+        countryProperties = user.get("c").properties;
+    }
+
     return {
-        id: user.id,
-        email: user.email,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        createdAt: user.createdAt,
+        id: databaseName === "neo4j" ? userProperties.id : user.id,
+        email: databaseName === "neo4j" ? userProperties.email : user.email,
+        firstName: databaseName === "neo4j" ? userProperties.firstName : user.firstName,
+        lastName: databaseName === "neo4j" ? userProperties.lastName : user.lastName,
+        createdAt: databaseName === "neo4j" ? new Date(userProperties.createdAt) : user.createdAt,
+
         role: databaseName === "mongodb" ? user.role.name :
             databaseName === "postgresql" ? user.role.role : 
-            user.role,
+            roleProperties.name,
+
         country: {
-            id: user.country.id,
-            name: user.country.name,
-            countryCode: user.country.countryCode
+            id: databaseName === "neo4j" ? countryProperties.id : user.country.id,
+            name: databaseName === "neo4j" ? countryProperties.name : user.country.name,
+            countryCode: databaseName === "neo4j" ? countryProperties.countryCode : user.country.countryCode
         },
         fromDatabase: databaseName
     };
+
+    // result.records.map((record) => {
+    //             const u = record.get("u").properties;
+    //             const r = record.get("r").properties;
+    //             const c = record.get("c").properties;
+
+    //             return {
+    //                 id:          u.id,
+    //                 email:       u.email,
+    //                 firstName:   u.firstName,
+    //                 lastName:    u.lastName,
+    //                 createdAt:   new Date(u.createdAt ?? Date.now()),
+    //                 role:        r.name,
+    //                 country: {
+    //                 id:          c.id,
+    //                 name:        c.name,
+    //                 countryCode: c.countryCode,
+    //                 },
+    //                 fromDatabase: "Neo4j",
+    //             };
 }
 
 export function formatUserCloset(closet: any, database: string): Closet {
