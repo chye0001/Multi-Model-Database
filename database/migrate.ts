@@ -442,6 +442,7 @@ async function migrate() {
         firstName: u.firstName,
         lastName:  u.lastName,
         email:     u.email,
+        createdAt: u.createdAt.toISOString(),
       });
       neo4jUsers.set(u.id, node);
     }

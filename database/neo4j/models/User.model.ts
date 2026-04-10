@@ -34,6 +34,8 @@ export interface UserProperties {
   /** Unique + not null. Used for login / lookup. */
   email: string;
 
+  createdAt: string;
+
   [key: string]: any;
 }
 
@@ -148,6 +150,12 @@ function buildUserModel() {
         email: {
           type: "string",
           format: "email",
+          required: true,
+        },
+        createdAt: {
+          type: "string",
+          // 'date-time' is a built-in JSON schema format for ISO 8601
+          format: "date-time", 
           required: true,
         },
       },
