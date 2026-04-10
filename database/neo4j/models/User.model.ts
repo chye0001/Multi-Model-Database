@@ -86,6 +86,11 @@ export interface UserRelatedNodes {
     UserHasClosetRelProps   // what is stored on the rel in Neo4j
   >;
 
+  sharedClosets: ModelRelatedNodesI<
+    ReturnType<typeof getClosetModel>,
+    ClosetInstance
+  >;
+
   /**
    * User -[:WRITES {dateWritten}]-> Review  (one-to-many)
    */
@@ -175,6 +180,13 @@ function buildUserModel() {
             },
           },
         },
+
+        sharedClosets: {
+          model: getClosetModel(),
+          name: "CO_CURATES",
+          direction: "out",
+        },
+
         // (User)-[:WRITES {dateWritten}]->(Review)
         reviews: {
           model: getReviewModel(),

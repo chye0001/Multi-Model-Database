@@ -228,6 +228,15 @@ async function seed() {
     });
   });
 
+  await step("Shared closet relationships", async () => {
+    
+    // Bob shares his closet with Alice — (User)-[:CO_CURATES]->(Closet)
+    await userAlice.relateTo({
+      alias: "sharedClosets",
+      where: { id: closetFormal.id }, // Bob owns this closet
+    });
+  });
+
   await step("Closet → Item relationships", async () => {
     // (Closet)-[:STORES]->(Item)
     await closetSummer.relateTo({ alias: "items", where: { id: itemAirMax.id } });

@@ -46,6 +46,11 @@ CREATE CONSTRAINT item_id_unique IF NOT EXISTS
 CREATE CONSTRAINT closet_id_unique IF NOT EXISTS
   FOR (cl:Closet) REQUIRE cl.id IS UNIQUE;
 
+// Shared Closet
+CREATE CONSTRAINT shared_closet_unique IF NOT EXISTS
+  FOR ()-[r:CO_CURATES]-()
+  REQUIRE (r.userId, r.closetId) IS UNIQUE;
+
 // Outfit
 CREATE CONSTRAINT outfit_id_unique IF NOT EXISTS
   FOR (o:Outfit) REQUIRE o.id IS UNIQUE;
