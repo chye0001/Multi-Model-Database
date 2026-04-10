@@ -70,7 +70,7 @@ npm run prisma:migrate
 This will generate a migration file and place it in the [/migrations](./prisma/migrations/) folder and apply them directly to the database you are connected to. Afterwards it will automatically generate a database client and sync it with the changes to [schema.prisma](./prisma/schema.prisma) - the database has to be running for it to apply the changes, otherwise it will only create the migrations file.
 
 
-## Connect to the Postgres Database
+## Connect to the Postgres Database UI
 There are multiple ways to connect to the Postgres database, but the simplest is to do:
 ```bash
 npm run prisma:studio
@@ -113,10 +113,19 @@ In other words if there are no data stored in the database, Mongo will not show 
 
 
 # Working with Neogma - Neo4j OGM
-IMPORTANT
-When running the script it will always wipe the entire database before seeding.
 
+## Seeding the database
 To seed the Neo4j graph database use execute this command - script found [here](./neo4j/scripts/seed.ts):
 ```bash
 npm run neo4j:seed
 ```
+
+## Reseting the database
+To reset or truncate the database run the command:
+```bash
+npm run neo4j:reset
+```
+
+## Opening up Neo4j Database Management Tool
+After you have started up the docker containers, the management tool should be availabe at: http://localhost:7474/browser/
+The port might be different check that in the Docker Desktop app.
