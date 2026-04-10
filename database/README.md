@@ -129,3 +129,21 @@ npm run neo4j:reset
 ## Opening up Neo4j Database Management Tool
 After you have started up the docker containers, the management tool should be availabe at: http://localhost:7474/browser/
 The port might be different check that in the Docker Desktop app.
+
+
+
+
+# Data migration from Postgres --> MongoDB & Neo4j
+
+## Migration
+When migrating all the data from Postgres over to MongoDB & Neo4j, you first need to make sure that the Postgres database is seeded.
+After it has been seeded execute:
+```bash
+npm run all-databases:migrate
+```
+
+## Reseting / Truncating all databases
+You can start from scrath by truncating all databases using a single command:
+```bash
+npm run all-databases:reset
+```
