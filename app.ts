@@ -1,4 +1,5 @@
 import express from "express";
+import session from "express-session";
 
 import { prisma } from "./database/postgres/prisma-client.js";
 
@@ -7,11 +8,19 @@ import { connectNeo4j, disconnectNeo4j } from "./database/neo4j/neogma-client.js
 
 
 
+
 const app = express();
 app.use(express.json());
+app.use(session({
+  secret: process.env.SESSION_SECRET ?? "dev-secret",
+  resave: false,
+  saveUninitialized: false,
+}));
 
 import userRouter from "./routes/users.router.js";
+import authRouter from "./routes/auth.router.js";
 app.use("/users", userRouter);
+app.use("/auth", authRouter);
 
 const port = 3001;
 app.listen(port, () => {

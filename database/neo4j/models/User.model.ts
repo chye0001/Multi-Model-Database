@@ -33,6 +33,8 @@ export interface UserProperties {
   lastName: string;
   /** Unique + not null. Used for login / lookup. */
   email: string;
+    
+  password: string;
 
   createdAt: string;
 
@@ -150,6 +152,10 @@ function buildUserModel() {
         email: {
           type: "string",
           format: "email",
+          required: true,
+        },
+        password: {
+          type: "string",
           required: true,
         },
         createdAt: {

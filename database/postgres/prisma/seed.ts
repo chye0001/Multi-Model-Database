@@ -1,4 +1,5 @@
 import "dotenv/config";
+import bcrypt from "bcrypt";
 import { prisma } from "../prisma-client.js";
 
 async function seed() {
@@ -29,9 +30,13 @@ async function seed() {
   const userRole  = await prisma.role.create({ data: { role: "User" } });
 
   // ── 3. USERS ───────────────────────────────────────────────────────────────
+
+  const hashedPassword = await bcrypt.hash("test", 10);
+
   const bob = await prisma.user.create({
     data: {
       email:     "bob@example.com",
+      password:  hashedPassword,
       firstName: "Bob",
       lastName:  "Smith",
       roleId:    userRole.id,
@@ -42,6 +47,7 @@ async function seed() {
   const alice = await prisma.user.create({
     data: {
       email:     "alice@example.com",
+      password:  hashedPassword,
       firstName: "Alice",
       lastName:  "Johnson",
       roleId:    adminRole.id,
@@ -52,6 +58,7 @@ async function seed() {
   const sofia = await prisma.user.create({
     data: {
       email:     "sofia.berg@example.com",
+      password:  hashedPassword,
       firstName: "Sofia",
       lastName:  "Berg",
       roleId:    userRole.id,
@@ -62,6 +69,7 @@ async function seed() {
   const noah = await prisma.user.create({
     data: {
       email:     "noah.lindqvist@example.com",
+      password:  hashedPassword,
       firstName: "Noah",
       lastName:  "Lindqvist",
       roleId:    userRole.id,

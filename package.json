@@ -7,20 +7,16 @@
     "dev": "tsx watch app.ts",
     "test": "echo \"Error: no test specified\" && exit 1",
     "build": "tsc",
-
     "prisma:migrate": "prisma migrate dev",
     "prisma:generate": "prisma generate",
     "prisma:studio": "prisma studio",
     "prisma:push": "prisma db push",
     "prisma:seed": "prisma db seed",
     "prisma:reset": "prisma migrate reset",
-
     "mongo:seed": "tsx database/mongo/scripts/seed.ts",
     "mongo:reset": "tsx database/mongo/scripts/reset.ts",
-
     "neo4j:seed": "tsx database/neo4j/scripts/seed.ts",
     "neo4j:reset": "tsx database/neo4j/scripts/reset.ts",
-
     "all-databases:reset": "npm run prisma:reset && npm run mongo:reset && npm run neo4j:reset",
     "all-databases:migrate": "tsx database/migrate.ts"
   },
@@ -34,7 +30,11 @@
   "dependencies": {
     "@prisma/adapter-pg": "^7.3.0",
     "@prisma/client": "^7.3.0",
+    "@types/bcrypt": "^6.0.0",
+    "@types/express-session": "^1.18.2",
+    "bcrypt": "^6.0.0",
     "express": "^5.2.1",
+    "express-session": "^1.19.0",
     "mongoose": "^9.2.3",
     "neo4j-driver": "^6.0.1",
     "neogma": "^1.16.1",
