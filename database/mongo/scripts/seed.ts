@@ -3,7 +3,7 @@ import { randomUUID } from "crypto";
 import { connectMongo, disconnectMongo } from "../mongoose-client.js";
 import type { HydratedDocument } from "mongoose";
 
-import { Country, Category, User, Brand, Item, Closet, Outfit } from "../models/index.js";
+import { Country, Category, User, Brand, Item, Closet, Outfit, Role } from "../models/index.js";
 import type { ICountry, ICategory, IBrand, IUser, IItem } from "../models/index.js";
 
 import bcrypt from "bcrypt";
@@ -204,6 +204,14 @@ async function seed() {
     },
   ]);
   console.log("[seed] outfits ✓");
+
+  // ── Roles ──────────────────────────────────────────────────────────────────
+  await Role.insertMany([
+    { id: 1, name: "admin" },
+    { id: 2, name: "user" },
+    { id: 3, name: "moderator" },
+  ]);
+  console.log("[seed] roles ✓");
 
   // ── done ──────────────────────────────────────────────────────────────────
   console.log("\n[seed] All collections seeded successfully ✓");

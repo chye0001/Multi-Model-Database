@@ -94,6 +94,8 @@ export interface IUserRepository {
 
 
 
+  assignRole(userId: string, roleName: string): Promise<any[]>;
+
   getAllUserClosets(userId: string): Promise<any[]>;
   getAllOutfitsByUserId(userId: string): Promise<any[]>;
   getAllReviewsByUserId(userId: string): Promise<any[]>;

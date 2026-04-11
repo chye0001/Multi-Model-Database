@@ -1,5 +1,5 @@
 import { use } from "react";
-import { User, Closet, Country, Outfit, Brand } from "../../database/mongo/models/index.js";
+import { User, Closet, Country, Outfit, Brand, Role } from "../../database/mongo/models/index.js";
 import type { IUser } from "../../database/mongo/models/index.js";
 
 import { formatUser, formatUserCloset, formatUserOutfit, formatUserReview } from "../../utils/repository_utils/ObjectFormatters.js";
@@ -120,6 +120,25 @@ export class MongoUserRepository implements IUserRepository {
         } catch (error) {
             console.error(`Error deleting user with id ${id} from MongoDB:`, error);
             throw new Error("Failed to delete user from MongoDB");
+        }
+    }
+
+    async assignRole(userEmail: string, roleName: string): Promise<any[]> {
+        try {
+            const role = await Role.findOne({ name: roleName }).lean().exec();
+            if (!role) throw new Error(`Role "${roleName}" not found`);
+
+            const updated = await User.findOneAndUpdate(
+                { email: userEmail },
+                { role: { id: role.id, name: role.name } },
+                { new: true }
+            ).populate('country').lean().exec();
+
+            if (!updated) throw new Error(`User not found`);
+            return [formatUser(updated, 'MongoDB')];
+        } catch (error) {
+            console.error(`Error assigning role to user with email ${userEmail} in MongoDB:`, error);
+            throw new Error('Failed to assign role in MongoDB');
         }
     }
 

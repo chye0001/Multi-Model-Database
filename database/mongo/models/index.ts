@@ -1,3 +1,5 @@
+export { Role }    from "./roles/Role.model.js";
+export type { IMongoRole } from "./roles/Role.model.js";
 export { Country } from "./references/Country.model.js";
 export { User }    from "./users/User.model.js";
 export { Category } from "./clothings/Category.model.js";

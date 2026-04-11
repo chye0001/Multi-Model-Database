@@ -26,8 +26,8 @@ async function seed() {
   });
 
   // ── 2. ROLES ───────────────────────────────────────────────────────────────
-  const adminRole = await prisma.role.create({ data: { role: "Admin" } });
-  const userRole  = await prisma.role.create({ data: { role: "User" } });
+  const adminRole = await prisma.role.create({ data: { role: "admin" } });
+  const userRole  = await prisma.role.create({ data: { role: "user" } });
 
   // ── 3. USERS ───────────────────────────────────────────────────────────────
 
