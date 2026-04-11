@@ -35,6 +35,7 @@ import type {
   UserInstance,
 } from "../models/index.js";
 
+import brycpt from "bcrypt";
 // ─────────────────────────────────────────────
 // Helpers
 // ─────────────────────────────────────────────
@@ -215,6 +216,8 @@ async function seed() {
 
   let userAlice: UserInstance, userBob: UserInstance;
 
+  const hashedPassword = await brycpt.hash("test", 10);
+
   await step("Users", async () => {
     const now = new Date().toISOString();
 
@@ -223,6 +226,7 @@ async function seed() {
       firstName: "Alice",
       lastName: "Jensen",
       email: "alice@example.com",
+      password: hashedPassword,
       createdAt: now,
     });
 
@@ -231,6 +235,7 @@ async function seed() {
       firstName: "Bob",
       lastName: "Smith",
       email: "bob@example.com",
+      password: hashedPassword,
       createdAt: now,
     });
   });

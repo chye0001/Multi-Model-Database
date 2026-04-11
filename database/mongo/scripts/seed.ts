@@ -6,6 +6,8 @@ import type { HydratedDocument } from "mongoose";
 import { Country, Category, User, Brand, Item, Closet, Outfit } from "../models/index.js";
 import type { ICountry, ICategory, IBrand, IUser, IItem } from "../models/index.js";
 
+import bcrypt from "bcrypt";
+
 // ---------------------------------------------------------------------------
 // helpers
 // ---------------------------------------------------------------------------
@@ -55,10 +57,14 @@ async function seed() {
 
   // ── 4. users ──────────────────────────────────────────────────────────────
   // id stays UUID — all other ids are now numbers
+
+  const hashedPassword = await bcrypt.hash("test", 10);
+
   const [alice, bob, carol, dave] = await User.insertMany([
     {
       id: randomUUID(),
       email: "alice@example.com",
+      password: hashedPassword,
       firstName: "Alice",
       lastName: "Smith",
       role: { id: 1, name: "admin" },
@@ -67,6 +73,7 @@ async function seed() {
     {
       id: randomUUID(),
       email: "bob@example.com",
+      password: hashedPassword,
       firstName: "Bob",
       lastName: "Johnson",
       role: { id: 2, name: "user" },
@@ -75,6 +82,7 @@ async function seed() {
     {
       id: randomUUID(),
       email: "carol@example.com",
+      password: hashedPassword,
       firstName: "Carol",
       lastName: "Williams",
       role: { id: 2, name: "user" },
@@ -83,6 +91,7 @@ async function seed() {
     {
       id: randomUUID(),
       email: "dave@example.com",
+      password: hashedPassword,
       firstName: "Dave",
       lastName: "Brown",
       role: { id: 3, name: "moderator" },

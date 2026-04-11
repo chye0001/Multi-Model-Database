@@ -23,6 +23,7 @@ const RoleSchema = new Schema<IRole>(
 export interface IUser extends Document {
   id: string;
   email: string;
+  password: string;
   firstName: string;
   lastName: string;
   createdAt: Date;
@@ -34,6 +35,7 @@ const UserSchema = new Schema<IUser>(
   {
     id:        { type: String, required: true, unique: true },
     email:     { type: String, required: true, unique: true, lowercase: true, trim: true },
+    password:  { type: String, required: true },
     firstName: { type: String, required: true, trim: true },
     lastName:  { type: String, required: true, trim: true },
     role:      { type: RoleSchema, required: true },
