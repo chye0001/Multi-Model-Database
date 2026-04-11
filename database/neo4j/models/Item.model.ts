@@ -93,10 +93,10 @@ function buildItemModel() {
       },
       primaryKeyField: "id",
       relationships: {
-        // direction: "out" means (Item)-[:BELONGS_TO]->(Brand)
+        // direction: "out" means (Item)-[:MADE_BY]->(Brand)
         brand: {
           model: getBrandModel(),
-          name: "BELONGS_TO",
+          name: "MADE_BY",
           direction: "out",
         },
         category: {

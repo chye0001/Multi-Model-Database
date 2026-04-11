@@ -58,6 +58,10 @@ export interface UserWritesReviewRelProps {
   dateWritten: string;
 }
 
+export interface UserCreatesOutfitRelProps {
+  dateAdded: string;
+}
+
 export interface UserRelatedNodes {
   /**
    * User -[:HAS]-> Role  (many-to-one)
@@ -112,7 +116,9 @@ export interface UserRelatedNodes {
    */
   outfits: ModelRelatedNodesI<
     ReturnType<typeof getOutfitModel>,
-    OutfitInstance
+    OutfitInstance,
+    UserCreatesOutfitRelProps,
+    UserCreatesOutfitRelProps
   >;
 }
 
@@ -222,12 +228,9 @@ function buildUserModel() {
           name: "CREATES",
           direction: "out",
           properties: {
-            createdAt: {
-              property: "createdAt",
-              schema: {
-                type: "string",
-                required: true,
-              },
+            dateAdded: {
+              property: "dateAdded",
+              schema: { type: "string", required: true },
             },
           },
         },

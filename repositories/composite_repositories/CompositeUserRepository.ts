@@ -1,12 +1,16 @@
 import { isRepositoriesEnabled } from '../../utils/repository_utils/ErrorHandling.js';
 
+import type { CreateUserRequest, UpdateUserRequest, User } from '../../dtos/users/User.dto.js';
 import type { IUserRepository } from '../interfaces/IUserRepository.js';
+import type { Closet } from '../../dtos/closets/Closet.dto.js';
+import type { Outfit } from '../../dtos/outfits/Outfit.dto.js';
+import type { Review } from '../../dtos/reviews/Review.dto.js';
 
 
 export class CompositeUserRepository implements IUserRepository {
   constructor(private enabledRepos: IUserRepository[]) {}
 
-  async getAllUsers(): Promise<any[]> {
+  async getAllUsers(): Promise<User[]> {
     try {     
       isRepositoriesEnabled(this.enabledRepos);
       const allUsersArrays = await Promise.all(this.enabledRepos.map(repo => repo.getAllUsers()));
@@ -18,7 +22,7 @@ export class CompositeUserRepository implements IUserRepository {
     }
   }
 
-  async getUserById(id: string): Promise<any[]> {
+  async getUserById(id: string): Promise<User[]> {
     try {
       isRepositoriesEnabled(this.enabledRepos);
       const userArrays = await Promise.all(this.enabledRepos.map(repo => repo.getUserById(id)));
@@ -30,7 +34,7 @@ export class CompositeUserRepository implements IUserRepository {
     }
   }
 
-  async createUser(data: Partial<any>): Promise<any[]> {
+  async createUser(data: Partial<CreateUserRequest>): Promise<User[]> {
    try {
      isRepositoriesEnabled(this.enabledRepos);
      const createdUser = await Promise.all(this.enabledRepos.map(repo => repo.createUser(data)));
@@ -42,7 +46,7 @@ export class CompositeUserRepository implements IUserRepository {
     }
   }
 
-  async updateUser(id: string, data: Partial<any>): Promise<any[]> {
+  async updateUser(id: string, data: Partial<UpdateUserRequest>): Promise<User[]> {
     try {
       isRepositoriesEnabled(this.enabledRepos);
       const updatedUsers = await Promise.all(this.enabledRepos.map(repo => repo.updateUser(id, data)));
@@ -67,7 +71,7 @@ export class CompositeUserRepository implements IUserRepository {
 
 
 
-  async assignRole(userEmail: string, roleName: string): Promise<any[]> {
+  async assignRole(userEmail: string, roleName: string): Promise<User[]> {
     try {
       isRepositoriesEnabled(this.enabledRepos);
       const results = await Promise.all(this.enabledRepos.map(repo => repo.assignRole(userEmail, roleName)));
@@ -78,7 +82,7 @@ export class CompositeUserRepository implements IUserRepository {
     }
   }
 
-  async getAllUserClosets(userId: string): Promise<any[]> {
+  async getAllUserClosets(userId: string): Promise<Closet[]> {
     try {
       isRepositoriesEnabled(this.enabledRepos);
       const allClosetsArrays = await Promise.all(this.enabledRepos.map(repo => repo.getAllUserClosets(userId)));
@@ -90,7 +94,7 @@ export class CompositeUserRepository implements IUserRepository {
     }
   }
 
-  async getAllOutfitsByUserId(userId: string): Promise<any[]> {
+  async getAllOutfitsByUserId(userId: string): Promise<Outfit[]> {
     try {
       isRepositoriesEnabled(this.enabledRepos);
       const allOutfitsArrays = await Promise.all(this.enabledRepos.map(repo => repo.getAllOutfitsByUserId(userId)));
@@ -102,7 +106,7 @@ export class CompositeUserRepository implements IUserRepository {
     }
   }
 
-  async getAllReviewsByUserId(userId: string): Promise<any[]> {
+  async getAllReviewsByUserId(userId: string): Promise<Review[]> {
     try {
       isRepositoriesEnabled(this.enabledRepos);
       const allReviewsArrays = await Promise.all(this.enabledRepos.map(repo => repo.getAllReviewsByUserId(userId)));
@@ -114,7 +118,7 @@ export class CompositeUserRepository implements IUserRepository {
     }
   }
 
-  async getAllSharedClosetsByUserId(userId: string): Promise<any[]> {
+  async getAllSharedClosetsByUserId(userId: string): Promise<Closet[]> {
     try {
       isRepositoriesEnabled(this.enabledRepos);
       const allSharedClosetsArrays = await Promise.all(this.enabledRepos.map(repo => repo.getAllSharedClosetsByUserId(userId)));

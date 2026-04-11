@@ -242,6 +242,7 @@ async function migrate() {
         name:        cl.name,
         description: cl.description ?? "",
         isPublic:    cl.isPublic,
+        createdAt:   cl.createdAt,
         userId:      mongoUserMap.get(
           // Postgres userId is an integer FK; User.id in Mongo is a UUID string.
           // Look up the Postgres user to get the UUID.
@@ -284,6 +285,7 @@ async function migrate() {
         createdBy: mongoUserMap.get(
           pgUsers.find((u) => u.id === outfit.createdBy)?.id ?? ""
         ),
+        dateAdded: outfit.dateAdded,
         // Flatten OutfitItem → ClosetItem → Item into direct item ObjectIds
         itemIds: outfit.outfitItems.map((oi) =>
           mongoOutfitItemMap.get(Number(oi.closetItem.item.id))
@@ -427,7 +429,7 @@ async function migrate() {
         where: { id: item.category.id },
       });
 
-      // (Item)-[:BELONGS_TO]->(Brand)  — many-to-many via ItemBrand join table
+      // (Item)-[:MADE_BY]->(Brand)  — many-to-many via ItemBrand join table
       for (const ib of item.itemBrands) {
         await itemNode.relateTo({
           alias: "brand",
@@ -541,7 +543,7 @@ async function migrate() {
       await userNode.relateTo({ 
         alias: "outfits", 
         where: { id: outfitNode.id },
-        properties: { createdAt: o.dateAdded.toISOString() }
+        properties: { dateAdded: o.dateAdded.toISOString() }
       });
 
       // (Outfit)-[:CONTAINS]->(Item)
