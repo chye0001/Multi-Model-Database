@@ -14,7 +14,16 @@ export type User = {
   fromDatabase?: string; // just to distinguish the source of the data, not a real field in the database
 };
 
-export type UpdateUserData = {
+export type CreateUserRequest = {
+  id: string;
+  email: string;
+  password: string;
+  firstName: string;
+  lastName: string;
+  countryId: number;
+}
+
+export type UpdateUserRequest = {
   firstName: string;
   lastName: string;
   countryId: number;

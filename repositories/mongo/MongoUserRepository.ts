@@ -5,7 +5,7 @@ import type { IUser } from "../../database/mongo/models/index.js";
 import { formatUser, formatUserCloset, formatUserOutfit, formatUserReview } from "../../utils/repository_utils/ObjectFormatters.js";
 
 import type { IUserRepository } from '../interfaces/IUserRepository.js';
-import type { UpdateUserData, User as UserDto } from "../../dtos/users/User.dto.js";
+import type { CreateUserRequest, UpdateUserRequest, User as UserDto } from "../../dtos/users/User.dto.js";
 import type { Closet as ClosetDto } from "../../dtos/closets/Closet.dto.js";
 import type { Outfit as OutfitDto } from "../../dtos/outfits/Outfit.dto.js";
 
@@ -48,9 +48,13 @@ export class MongoUserRepository implements IUserRepository {
         }
     }
 
-    async createUser(data: Partial<IUser> & { roleId?: number; countryId?: any; roleName?: string }): Promise<UserDto[]> {
+    async createUser(data: CreateUserRequest): Promise<UserDto[]> {
         try {
-            const role = this.buildRole(data);
+            const defualtUserRole = {
+                id: 2,
+                name: "user"
+            };
+            
             const countryId = data.countryId;
             let country = countryId
             ? await Country.findOne({ id: countryId }).lean().exec()
@@ -67,7 +71,7 @@ export class MongoUserRepository implements IUserRepository {
                 email: data.email,
                 firstName: data.firstName,
                 lastName: data.lastName,
-                role,
+                role: defualtUserRole,
                 country
             });
 
@@ -81,9 +85,12 @@ export class MongoUserRepository implements IUserRepository {
         }
     }
 
-    async updateUser(id: string, data: Partial<UpdateUserData>): Promise<UserDto[]> {
+    async updateUser(id: string, data: UpdateUserRequest): Promise<UserDto[]> {
         try {
- 
+            if ( !data.firstName || !data.lastName || !data.countryId) {
+                throw new Error(`Missing required data to update. Data recived: ${data}`)
+            }
+
             let country = data.countryId
                 ? await Country.findOne({ id: data.countryId }).lean().exec()
                 : null;
@@ -235,10 +242,9 @@ export class MongoUserRepository implements IUserRepository {
                 return [];
             }
 
-            // Find closets owned by this user where sharedWith has at least one entry
+            // Find closets where this user is in the sharedWith array
             const sharedClosets = await Closet.find({
-                userId: foundUser._id,
-                    "sharedWith.0": { $exists: true }, // at least one entry in sharedWith
+                "sharedWith.userId": foundUser._id,
                 })
                 .populate("userId")
                 .populate("itemIds")
@@ -256,8 +262,8 @@ export class MongoUserRepository implements IUserRepository {
             return populatedItems.map((closet) => formatUserCloset(closet, "mongodb"));
 
         } catch (error: any) {
-            console.error(`Failed to fetch all shared closets owned by userId: ${userId}.`);
-            throw new Error(`Failed to fetch all shared closets owned by userId: ${userId}.`, error);
+            console.error(`Failed to fetch all shared closets for userId: ${userId}.`);
+            throw new Error(`Failed to fetch all shared closets for userId: ${userId}.`, error);
         }
     }
 
@@ -266,30 +272,6 @@ export class MongoUserRepository implements IUserRepository {
     //---------------------------------------------------------------------------------------------
     // [START Helper Methods]
     //---------------------------------------------------------------------------------------------
-    private buildRole(data: Partial<IUser> & { roleId?: number; roleName?: string }) {
-        if (data.role && typeof data.role === "object" && "id" in data.role && "name" in data.role) {
-            return data.role;
-        }
-
-        const roleId = data.roleId ?? 2; // defaults to user
-        const roleName = data.roleName ?? this.getRoleName(roleId);
-
-        return {
-            id: roleId,
-            name: roleName,
-        };
-    }
-
-    private getRoleName(roleId: number) {
-        switch (roleId) {
-            case 1:
-                return "admin";
-            case 3:
-                return "moderator";
-            default:
-                return "user";
-        }
-    }
 
     async resolveSharedWith(sharedWith: any[]): Promise<any[]> {
         return Promise.all(

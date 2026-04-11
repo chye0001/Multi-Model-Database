@@ -2,8 +2,8 @@ import type { IUserRepository } from '../interfaces/IUserRepository.js';
 
 import { formatUser, formatUserOutfit, formatUserCloset, formatUserReview } from "../../utils/repository_utils/ObjectFormatters.js";
 
-import type { UpdateUserData, User } from '../../dtos/users/User.dto.js';
-import type { Closet, SharedCloset } from '../../dtos/closets/Closet.dto.js';
+import type { CreateUserRequest, UpdateUserRequest, User } from '../../dtos/users/User.dto.js';
+import type { Closet } from '../../dtos/closets/Closet.dto.js';
 import type { Outfit } from '../../dtos/outfits/Outfit.dto.js';
 import type { Review } from '../../dtos/reviews/Review.dto.js';
 
@@ -52,7 +52,7 @@ export class PostgresUserRepository implements IUserRepository {
         }
     }
 
-    async createUser(data: Partial<any>): Promise<User[]> {
+    async createUser(data: CreateUserRequest): Promise<User[]> {
         try {
             const newUser = await prisma.user.create({
                 data: {
@@ -61,7 +61,7 @@ export class PostgresUserRepository implements IUserRepository {
                     password: data.password,
                     firstName: data.firstName,
                     lastName: data.lastName,
-                    roleId: data.roleId,
+                    roleId: 2, // default user role
                     countryId: data.countryId
                 },
                 include: {
@@ -78,7 +78,7 @@ export class PostgresUserRepository implements IUserRepository {
         }
     }
 
-    async updateUser(id: string, data: Partial<UpdateUserData>): Promise<User[]> {
+    async updateUser(id: string, data: UpdateUserRequest): Promise<User[]> {
         try {
             if ( !data.firstName || !data.lastName || !data.countryId) {
                 throw new Error(`Missing required data to update. Data recived: ${data}`)
@@ -163,8 +163,8 @@ export class PostgresUserRepository implements IUserRepository {
                                     item: {
                                         include: {
                                             category: true,
-                                            image: true,
-                                            itemBrand: {
+                                            images: true,
+                                            itemBrands: {
                                                 include: {
                                                     brand: {
                                                         include: {
@@ -205,14 +205,15 @@ export class PostgresUserRepository implements IUserRepository {
         }
     }
 
-    async getAllSharedClosetsByUserId(userId: string): Promise<SharedCloset[]> {
+    async getAllSharedClosetsByUserId(userId: string): Promise<Closet[]> {
         try {
-            // Get all closets owned by the user that are shared with others
+            // Get all closets that are shared with this user
             const sharedClosets = await prisma.closet.findMany({
                 where: { 
-                    userId,
                     sharedCloset: {
-                        some: {} // closets that have at least one shared relationship
+                        some: {
+                            userId: userId // closets shared with this user
+                        }
                     }
                 },
                 include: {
