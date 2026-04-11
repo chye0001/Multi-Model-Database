@@ -5,4 +5,5 @@ export type Brand = {
   id: number;
   name: string;
   country?: Country;
+  fromDatabase?: string;
 }
