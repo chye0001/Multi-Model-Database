@@ -8,7 +8,7 @@ export interface IAuthRepository {
     lastName: string;
     roleId: number;
     countryId: number;
-  }): Promise<User>;
+  }): Promise<User[]>;
 
-  findByEmail(email: string): Promise<{ user: User; passwordHash: string } | null>;
+  findByEmail(email: string): Promise<{ users: User[]; passwordHash: string } | null>;
 }

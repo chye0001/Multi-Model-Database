@@ -18,7 +18,8 @@
     "neo4j:seed": "tsx database/neo4j/scripts/seed.ts",
     "neo4j:reset": "tsx database/neo4j/scripts/reset.ts",
     "all-databases:reset": "npm run prisma:reset && npm run mongo:reset && npm run neo4j:reset",
-    "all-databases:migrate": "tsx database/migrate.ts"
+    "all-databases:migrate": "tsx database/migrate.ts",
+    "all-databases:seed": "prisma db seed && tsx database/mongo/scripts/seed.ts && tsx database/neo4j/scripts/seed.ts"
   },
   "prisma": {
     "schema": "./database/postgres/prisma/schema.prisma"

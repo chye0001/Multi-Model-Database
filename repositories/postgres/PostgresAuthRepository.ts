@@ -11,7 +11,7 @@ export class PostgresAuthRepository implements IAuthRepository {
     lastName: string;
     roleId: number;
     countryId: number;
-  }): Promise<User> {
+  }): Promise<User[]> {
     try {
       const user = await prisma.user.create({
         data: {
@@ -25,21 +25,21 @@ export class PostgresAuthRepository implements IAuthRepository {
         },
         include: { role: true, country: true },
       });
-      return formatUser(user, 'PostgreSQL');
+      return [formatUser(user, 'PostgreSQL')];
     } catch (error) {
       console.error('Error registering user in PostgreSQL:', error);
       throw new Error('Failed to register user');
     }
   }
 
-  async findByEmail(email: string): Promise<{ user: User; passwordHash: string } | null> {
+  async findByEmail(email: string): Promise<{ users: User[]; passwordHash: string } | null> {
     try {
       const user = await prisma.user.findUnique({
         where: { email },
         include: { role: true, country: true },
       });
       if (!user) return null;
-      return { user: formatUser(user, 'PostgreSQL'), passwordHash: user.password };
+      return { users: [formatUser(user, 'PostgreSQL')], passwordHash: user.password };
     } catch (error) {
       console.error('Error finding user by email in PostgreSQL:', error);
       throw new Error('Failed to find user');

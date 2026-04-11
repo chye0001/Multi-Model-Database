@@ -25,13 +25,13 @@ export class AuthController {
         return res.status(400).send({ error: 'Email and password are required' });
       }
 
-      const user = await this.authService.login(email, password);
-      if (!user) {
+      const users = await this.authService.login(email, password);
+      if (!users) {
         return res.status(401).send({ error: 'Invalid email or password' });
       }
 
-      req.session.userId = user.id;
-      res.send(user);
+      req.session.userId = users[0]!.id;
+      res.send(users);
     } catch (error: any) {
       res.status(500).send({ error: error?.message ?? 'Login failed' });
     }
