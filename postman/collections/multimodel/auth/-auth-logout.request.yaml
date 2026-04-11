@@ -1,0 +1,5 @@
+$kind: http-request
+name: /auth/logout
+url: ""
+method: GET
+order: 3000

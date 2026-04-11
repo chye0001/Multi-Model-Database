@@ -1,0 +1,5 @@
+$kind: http-request
+name: auth/login
+url: ""
+method: GET
+order: 2000

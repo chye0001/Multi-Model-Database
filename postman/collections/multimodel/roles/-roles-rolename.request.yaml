@@ -1,0 +1,5 @@
+$kind: http-request
+name: /roles/:rolename
+url: ""
+method: GET
+order: 3000
