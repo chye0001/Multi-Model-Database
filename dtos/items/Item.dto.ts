@@ -9,6 +9,7 @@ export type ClothingItem = {
   category: string;
   brands: Brand[];
   images: ItemImage[];
+  fromDatabase?: string;
 }
 
 export type ItemImage = {
