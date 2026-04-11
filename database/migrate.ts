@@ -16,7 +16,7 @@ import { connectMongo, disconnectMongo } from "./mongo/mongoose-client.js";
 import { connectNeo4j, disconnectNeo4j, neogma } from "./neo4j/neogma-client.js";
 
 // ── Mongoose models ──────────────────────────────────────────────────────────
-import { Country, Category, Brand, User, Item, Closet, Outfit } from "./mongo/models/index.js";
+import { Country, Category, Brand, User, Item, Closet, Outfit, Role } from "./mongo/models/index.js";
 
 // ── Neogma model getters ─────────────────────────────────────────────────────
 import {
@@ -184,6 +184,7 @@ async function migrate() {
         return {
           id:        u.id,           // UUID string from Postgres
           email:     u.email,
+          password: u.password,
           firstName: u.firstName,
           lastName:  u.lastName,
           role: {
@@ -297,6 +298,15 @@ async function migrate() {
           ),
           dateWritten: r.dateWritten,
         })),
+      }))
+    );
+  });
+
+  await step("Mongo: Roles", async () => {
+    await Role.insertMany(
+      pgRoles.map((r) => ({
+        id:   r.id,
+        name: r.role,
       }))
     );
   });

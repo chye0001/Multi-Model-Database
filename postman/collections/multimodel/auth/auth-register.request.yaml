@@ -1,5 +1,16 @@
 $kind: http-request
 name: auth/register
-url: ""
-method: GET
+url: "{{BASE_URL}}/auth/register"
+method: POST
+body:
+  type: json
+  content: |-
+    {
+        "email": "madstest@mail.com",
+        "password": "test",
+        "firstName": "Mads",
+        "lastName": "Test",
+        "roleId": 1,
+        "countryId": 1
+    }
 order: 1000

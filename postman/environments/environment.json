@@ -4,7 +4,7 @@
 	"values": [
 		{
 			"key": "BASE_URL",
-			"value": "",
+			"value": "localhost:3001",
 			"type": "default",
 			"enabled": true
 		}
