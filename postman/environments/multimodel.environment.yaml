@@ -1,5 +1,0 @@
-name: multimodel
-values:
-  - key: BASE_URL
-    value: ''
-    enabled: true
