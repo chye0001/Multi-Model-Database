@@ -166,11 +166,11 @@ export function formatClothingItem(item: any, database: string): ClothingItem {
   }
 
   const brands = databaseName === "postgresql"
-    ? item.itemBrand?.map((relation: any) => formatBrand(relation.brand)) || []
+    ? item.itemBrands?.map((relation: any) => formatBrand(relation.brand)) || []
     : item.brands?.map((brand: any) => formatBrand(brand)) || [];
 
   const images = databaseName === "postgresql"
-    ? item.image
+    ? item.images
     : item.images;
 
   return {
