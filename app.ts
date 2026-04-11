@@ -20,9 +20,11 @@ app.use(session({
 import userRouter from "./routes/users.router.js";
 import authRouter from "./routes/auth.router.js";
 import rolesRouter from "./routes/roles.router.js";
+import countriesRouter from "./routes/countries.router.js";
 app.use("/users", userRouter);
 app.use("/auth", authRouter);
 app.use("/roles", rolesRouter);
+app.use("/countries", countriesRouter);
 
 const port = 3001;
 app.listen(port, () => {
