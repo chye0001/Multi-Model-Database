@@ -58,6 +58,7 @@ export class PostgresUserRepository implements IUserRepository {
                 data: {
                     id: data.id,
                     email: data.email,
+                    password: data.password,
                     firstName: data.firstName,
                     lastName: data.lastName,
                     roleId: data.roleId,
@@ -117,6 +118,20 @@ export class PostgresUserRepository implements IUserRepository {
     }
 
 
+
+    async assignRole(userEmail: string, roleName: string): Promise<any[]> {
+        try {
+            const updated = await prisma.user.update({
+                where: { email: userEmail },
+                data: { role: { connect: { role: roleName } } },
+                include: { role: true, country: true },
+            });
+            return [formatUser(updated, 'PostgreSQL')];
+        } catch (error) {
+            console.error(`Error assigning role to user with email ${userEmail} in PostgreSQL:`, error);
+            throw new Error(`Failed to assign role in PostgreSQL`);
+        }
+    }
 
     async getAllUserClosets(userId: string): Promise<Closet[]> {
         try {

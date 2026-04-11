@@ -49,6 +49,30 @@ export class Neo4jUserRepository implements IUserRepository {
 
 
 
+    async assignRole(userEmail: string, roleName: string): Promise<any[]> {
+        try {
+            await neogma.queryRunner.run(`
+                MATCH (u:User { email: $userEmail })-[rel:HAS]->(old:Role)
+                DELETE rel
+                WITH u
+                MATCH (r:Role { name: $roleName })
+                CREATE (u)-[:HAS]->(r)
+            `, { userEmail, roleName });
+
+            const result = await neogma.queryRunner.run(`
+                MATCH (u:User { email: $userEmail })-[:HAS]->(r:Role)
+                MATCH (u)-[:IS_FROM]->(c:Country)
+                RETURN u, r, c
+            `, { userEmail });
+
+            if (result.records.length === 0) throw new Error('User not found');
+            return [formatUser(result.records[0]!, 'neo4j')];
+        } catch (error) {
+            console.error(`Error assigning role to user with email ${userEmail} in Neo4j:`, error);
+            throw new Error('Failed to assign role in Neo4j');
+        }
+    }
+
     async getAllUserClosets(userId: string): Promise<any[]> {
         // Implement logic to fetch all closets for a user from Neo4j
         return [];

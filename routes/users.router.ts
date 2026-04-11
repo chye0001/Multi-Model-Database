@@ -17,6 +17,8 @@ router.post('/', userController.createUser);
 router.put('/:id', userController.updateUser);
 router.delete('/:id', userController.deleteUser);
 
+router.patch('/role', userController.assignRole);
+
 // 3. Sub-resource Routes
 router.get('/:id/closets', userController.getUserClosets);
 router.get('/:id/outfits', userController.getUserOutfits);

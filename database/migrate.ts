@@ -441,7 +441,8 @@ async function migrate() {
         id:        u.id,           // UUID string
         firstName: u.firstName,
         lastName:  u.lastName,
-        email:     u.email,
+        email: u.email,
+        password: u.password,
         createdAt: u.createdAt.toISOString(),
       });
       neo4jUsers.set(u.id, node);
