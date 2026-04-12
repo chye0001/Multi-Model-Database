@@ -36,7 +36,7 @@ const config: Record<
     username: process.env.NEO4J_USERNAME_PROD,
     password: process.env.NEO4J_PASSWORD_PROD,
     database: process.env.NEO4J_DB_PROD,
-    encrypted: true,
+    encrypted: false, // temp set to false to avoid issues with self-signed certs in dev/prod - should be true in prod with proper certs technically
   },
 };
 
@@ -66,8 +66,9 @@ export async function connectNeo4j(): Promise<void> {
       console.log(`[Neo4j / Neogma] Connected on attempt ${attempt}`);
       break;
     } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
       console.warn(
-        `[Neo4j / Neogma] Connection attempt ${attempt}/${MAX_RETRIES} failed. Retrying in ${DELAY_MS}ms...`,
+        `[Neo4j / Neogma] Connection attempt ${attempt}/${MAX_RETRIES} failed: ${message}. Retrying in ${DELAY_MS}ms...`,
       );
 
       if (attempt === MAX_RETRIES) {
