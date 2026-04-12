@@ -1,9 +1,7 @@
 services:
   postgres:
     container_name: postgres_database
-    build:
-      context: .
-      dockerfile: Dockerfilepostgress
+    image: ${DOCKER_HUB_USERNAME}/database-postgres:latest
     ports:
       - ${POSTGRES_PORT_DEV}:5432
     environment:
