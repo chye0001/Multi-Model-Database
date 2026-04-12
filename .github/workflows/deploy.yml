@@ -89,13 +89,13 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Copy docker-compose.db.yml to server
+      - name: Copy database compose files to server
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
-          source: docker-compose.db.yml
+          source: docker-compose.db.yml,docker-compose.db.prod.yml
           target: /home/${{ secrets.DEPLOY_USER }}/database/backend
 
       - name: Copy .env file to server
@@ -117,17 +117,23 @@ jobs:
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           script: |
             cd /home/${{ secrets.DEPLOY_USER }}/database/backend
-            set -a
-            . ./.env
-            set +a
-            export POSTGRES_PORT_DEV="$POSTGRES_PORT_PROD"
-            export POSTGRES_USER_DEV="$POSTGRES_USER_PROD"
-            export POSTGRES_PASSWORD_DEV="$POSTGRES_PASSWORD_PROD"
-            export POSTGRES_DB_DEV="$POSTGRES_DB_PROD"
-            export MONGO_DB_DEV="$MONGO_DB_PROD"
-            export NEO4J_USERNAME_DEV="$NEO4J_USERNAME_PROD"
-            export NEO4J_PASSWORD_DEV="$NEO4J_PASSWORD_PROD"
-            docker compose -f docker-compose.db.yml up -d
+            docker compose --env-file .env -f docker-compose.db.prod.yml up -d
+
+            for attempt in $(seq 1 30); do
+              if docker exec postgres_database pg_isready -U "$POSTGRES_USER_PROD" -d "$POSTGRES_DB_PROD" >/dev/null 2>&1; then
+                break
+              fi
+
+              if [ "$attempt" -eq 30 ]; then
+                echo "Postgres did not become ready in time"
+                exit 1
+              fi
+
+              sleep 2
+            done
+
+            docker exec -e PGPASSWORD="$POSTGRES_PASSWORD_PROD" postgres_database \
+              psql -U "$POSTGRES_USER_PROD" -d "$POSTGRES_DB_PROD" -c 'SELECT 1;' >/dev/null
 
       - name: Copy docker-compose.yml to server
         uses: appleboy/scp-action@v0.1.7
@@ -146,12 +152,9 @@ jobs:
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           script: |
             cd /home/${{ secrets.DEPLOY_USER }}/database/backend
-            set -a
-            . ./.env
-            set +a
             export APP_IMAGE_TAG=${{ github.ref_name }}
-            docker compose -f docker-compose.app.yml pull
-            docker compose -f docker-compose.app.yml up -d --force-recreate
+            docker compose --env-file .env -f docker-compose.app.yml pull
+            docker compose --env-file .env -f docker-compose.app.yml up -d --force-recreate
 
             # Wait for container to be healthy
             sleep 10
