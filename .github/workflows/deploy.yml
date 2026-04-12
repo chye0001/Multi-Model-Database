@@ -98,6 +98,18 @@ jobs:
           source: docker-compose.db.yml
           target: /home/${{ secrets.DEPLOY_USER }}/database/backend
 
+      - name: Copy .env file to server
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            cat << 'EOF' > /home/${{ secrets.DEPLOY_USER }}/database/backend/.env
+            ${{ secrets.ENV }}
+            EOF
+
+
       - name: Deploy databases
         uses: appleboy/ssh-action@master
         with:
@@ -116,17 +128,6 @@ jobs:
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           source: docker-compose.app.yml
           target: /home/${{ secrets.DEPLOY_USER }}/database/backend
-
-      - name: Copy .env file to server
-        uses: appleboy/ssh-action@master
-        with:
-          host: ${{ secrets.DEPLOY_HOST }}
-          username: ${{ secrets.DEPLOY_USER }}
-          key: ${{ secrets.DEPLOY_SSH_KEY }}
-          script: |
-            cat << 'EOF' > /home/${{ secrets.DEPLOY_USER }}/database/backend/.env
-            ${{ secrets.ENV }}
-            EOF
 
       - name: Deploy to self-hosted server
         uses: appleboy/ssh-action@master
