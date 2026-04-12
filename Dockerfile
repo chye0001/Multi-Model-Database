@@ -28,7 +28,6 @@ COPY package*.json ./
 RUN npm ci
 
 # Copy source from builder
-COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/app.ts ./
 COPY --from=builder /app/tsconfig.json ./
 COPY --from=builder /app/prisma.config.ts ./
