@@ -22,11 +22,13 @@ import authRouter from "./routes/auth.router.js";
 import rolesRouter from "./routes/roles.router.js";
 import countriesRouter from "./routes/countries.router.js";
 import categoriesRouter from "./routes/categories.router.js";
+import brandsRouter from "./routes/brands.router.js";
 app.use("/users", userRouter);
 app.use("/auth", authRouter);
 app.use("/roles", rolesRouter);
 app.use("/countries", countriesRouter);
 app.use("/categories", categoriesRouter);
+app.use("/brands", brandsRouter);
 
 const port = 3001;
 app.listen(port, () => {

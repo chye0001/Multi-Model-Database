@@ -1,10 +1,10 @@
 {
   "info": {
-    "_postman_id": "bd6b1f78-58eb-4519-8728-294a4ecb789c",
-    "name": "SoftTopOp DB Mandatory",
+    "_postman_id": "a32d0946-abf3-41a1-944b-f6f4e317bcad",
+    "name": "SoftTopOp DB Mandatory Copy",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
     "_exporter_id": "52904670",
-    "_collection_link": "https://go.postman.co/collection/52904670-bd6b1f78-58eb-4519-8728-294a4ecb789c?source=collection_link"
+    "_collection_link": "https://go.postman.co/collection/52904670-a32d0946-abf3-41a1-944b-f6f4e317bcad?source=collection_link"
   },
   "item": [
     {
@@ -623,6 +623,67 @@
                 "items"
               ]
             }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "brands",
+      "item": [
+        {
+          "name": "/brands",
+          "request": {
+            "method": "GET",
+            "header": []
+          },
+          "response": []
+        },
+        {
+          "name": "/brands",
+          "request": {
+            "method": "GET",
+            "header": []
+          },
+          "response": []
+        },
+        {
+          "name": "/brands/:name",
+          "request": {
+            "method": "GET",
+            "header": []
+          },
+          "response": []
+        },
+        {
+          "name": "/brands/:name",
+          "request": {
+            "method": "GET",
+            "header": []
+          },
+          "response": []
+        },
+        {
+          "name": "/brands/:name",
+          "request": {
+            "method": "GET",
+            "header": []
+          },
+          "response": []
+        },
+        {
+          "name": "/brands/:name/items",
+          "request": {
+            "method": "GET",
+            "header": []
+          },
+          "response": []
+        },
+        {
+          "name": "/brands?country=:code",
+          "request": {
+            "method": "GET",
+            "header": []
           },
           "response": []
         }
