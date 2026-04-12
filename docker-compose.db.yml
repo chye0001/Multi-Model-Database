@@ -29,14 +29,23 @@ services:
     image: neo4j:5
     container_name: neo4j
     ports:
-      - "7474:7474"   # Neo4j Browser (GUI)
-      - "7687:7687"   # Bolt protocol (driver connects here)
+      - "7474:7474" # Neo4j Browser (GUI)
+      - "7687:7687" # Bolt protocol (driver connects here)
     volumes:
       - neo4j_data:/data
     environment:
       NEO4J_AUTH: ${NEO4J_USERNAME_DEV}/${NEO4J_PASSWORD_DEV}
     healthcheck:
-      test: ["CMD", "cypher-shell", "-u", "${NEO4J_USERNAME_DEV}", "-p", "${NEO4J_PASSWORD_DEV}", "RETURN 1"]
+      test:
+        [
+          "CMD",
+          "cypher-shell",
+          "-u",
+          "${NEO4J_USERNAME_DEV}",
+          "-p",
+          "${NEO4J_PASSWORD_DEV}",
+          "RETURN 1",
+        ]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -68,8 +77,6 @@ services:
           exit 1
         fi
     restart: "no"
-
-  
 
 volumes:
   database_volume:

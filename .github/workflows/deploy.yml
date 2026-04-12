@@ -117,6 +117,13 @@ jobs:
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           script: |
             cd /home/${{ secrets.DEPLOY_USER }}/database/backend
+            export POSTGRES_PORT_DEV="$POSTGRES_PORT_PROD"
+            export POSTGRES_USER_DEV="$POSTGRES_USER_PROD"
+            export POSTGRES_PASSWORD_DEV="$POSTGRES_PASSWORD_PROD"
+            export POSTGRES_DB_DEV="$POSTGRES_DB_PROD"
+            export MONGO_DB_DEV="$MONGO_DB_PROD"
+            export NEO4J_USERNAME_DEV="$NEO4J_USERNAME_PROD"
+            export NEO4J_PASSWORD_DEV="$NEO4J_PASSWORD_PROD"
             docker compose -f docker-compose.db.yml up -d
 
       - name: Copy docker-compose.yml to server
