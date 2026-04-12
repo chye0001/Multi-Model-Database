@@ -137,6 +137,7 @@ jobs:
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           script: |
             cd /home/${{ secrets.DEPLOY_USER }}/database/backend
+            export APP_IMAGE_TAG=${{ github.ref_name }}
             docker compose -f docker-compose.app.yml pull
             docker compose -f docker-compose.app.yml up -d --force-recreate
 
@@ -147,12 +148,12 @@ jobs:
             docker exec backend npx prisma generate
 
             # Run migrations
-            docker exec backend npx prisma migrate dev
+            docker exec backend npx prisma migrate deploy
 
             # Seed Postgres database
             docker exec backend npx prisma db seed
 
             # Migrate data to other databases
-            docker exec backend tsx src/database/migrate.ts
+            docker exec backend npx tsx database/migrate.ts
 
             
