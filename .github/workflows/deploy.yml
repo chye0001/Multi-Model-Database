@@ -2,7 +2,7 @@ name: Build and push to Dockerhub then deploy to self-hosted server
 
 on:
   push:
-    branches: ["main"]
+    branches: ["main", "deployment-fix"]
     tags: ["v*"]
 
 env:
@@ -59,6 +59,25 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Copy docker-compose.db.yml to server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          source: docker-compose.db.yml
+          target: /home/${{ secrets.DEPLOY_USER }}/database/backend
+
+      - name: Deploy databases
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            cd /home/${{ secrets.DEPLOY_USER }}/database/backend
+            docker compose -f docker-compose.db.yml up -d
 
       - name: Copy docker-compose.yml to server
         uses: appleboy/scp-action@v0.1.7
