@@ -120,7 +120,7 @@ jobs:
             docker compose --env-file .env -f docker-compose.db.prod.yml up -d
 
             for attempt in $(seq 1 30); do
-              if docker exec postgres_database pg_isready -U "$POSTGRES_USER_PROD" -d "$POSTGRES_DB_PROD" >/dev/null 2>&1; then
+              if docker exec postgres_database sh -lc 'pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"' >/dev/null 2>&1; then
                 break
               fi
 
@@ -132,8 +132,7 @@ jobs:
               sleep 2
             done
 
-            docker exec -e PGPASSWORD="$POSTGRES_PASSWORD_PROD" postgres_database \
-              psql -U "$POSTGRES_USER_PROD" -d "$POSTGRES_DB_PROD" -c 'SELECT 1;' >/dev/null
+            docker exec postgres_database sh -lc 'PGPASSWORD="$POSTGRES_PASSWORD" psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "SELECT 1;" >/dev/null'
 
       - name: Copy docker-compose.yml to server
         uses: appleboy/scp-action@v0.1.7
