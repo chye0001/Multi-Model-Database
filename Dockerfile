@@ -27,13 +27,19 @@ COPY package*.json ./
 # Install all dependencies (needed for migrations)
 RUN npm ci
 
-# Copy built application from builder
+# Copy source from builder
+COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=builder /app/app.ts ./
+COPY --from=builder /app/tsconfig.json ./
+COPY --from=builder /app/prisma.config.ts ./
 COPY --from=builder /app/database ./database
-
-# Copy source for runtime (if needed)
-COPY app.ts ./
-COPY tsconfig.json ./
-COPY prisma.config.ts ./
+COPY --from=builder /app/routes ./routes
+COPY --from=builder /app/controllers ./controllers
+COPY --from=builder /app/services ./services
+COPY --from=builder /app/repositories ./repositories
+COPY --from=builder /app/dtos ./dtos
+COPY --from=builder /app/utils ./utils
+COPY --from=builder /app/types ./types
 
 # Expose port
 EXPOSE 3000
