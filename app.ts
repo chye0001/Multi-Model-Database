@@ -6,9 +6,6 @@ import { prisma } from "./database/postgres/prisma-client.js";
 import { connectMongo, disconnectMongo } from "./database/mongo/mongoose-client.js";
 import { connectNeo4j, disconnectNeo4j } from "./database/neo4j/neogma-client.js";
 
-
-
-
 const app = express();
 app.use(express.json());
 app.use(session({

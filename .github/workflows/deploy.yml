@@ -109,7 +109,6 @@ jobs:
             ${{ secrets.ENV }}
             EOF
 
-
       - name: Deploy databases
         uses: appleboy/ssh-action@master
         with:
@@ -155,5 +154,3 @@ jobs:
 
             # Migrate data to other databases
             docker exec backend npx tsx database/migrate.ts
-
-            
