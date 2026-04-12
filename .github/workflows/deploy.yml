@@ -117,6 +117,9 @@ jobs:
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           script: |
             cd /home/${{ secrets.DEPLOY_USER }}/database/backend
+            set -a
+            . ./.env
+            set +a
             export POSTGRES_PORT_DEV="$POSTGRES_PORT_PROD"
             export POSTGRES_USER_DEV="$POSTGRES_USER_PROD"
             export POSTGRES_PASSWORD_DEV="$POSTGRES_PASSWORD_PROD"
@@ -143,6 +146,9 @@ jobs:
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           script: |
             cd /home/${{ secrets.DEPLOY_USER }}/database/backend
+            set -a
+            . ./.env
+            set +a
             export APP_IMAGE_TAG=${{ github.ref_name }}
             docker compose -f docker-compose.app.yml pull
             docker compose -f docker-compose.app.yml up -d --force-recreate
