@@ -42,11 +42,6 @@ app.get("/healthcheck", (req, res) => {
   res.status(200).send("OK");
 });
 
-app.get("/users", async (req, res) => {
-  const users = await prisma.user.findMany();
-  res.status(200).json(users);
-});
-
 process.on("SIGINT", async () => {
   await disconnectMongo();
   await disconnectNeo4j();
