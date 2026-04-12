@@ -17,12 +17,12 @@ app.use(session({
   saveUninitialized: false,
 }));
 
-import userRouter from "./routes/users.router.ts";
-import authRouter from "./routes/auth.router.ts";
-import rolesRouter from "./routes/roles.router.ts";
-import countriesRouter from "./routes/countries.router.ts";
-import categoriesRouter from "./routes/categories.router.ts";
-import brandsRouter from "./routes/brands.router.ts";
+import userRouter from "./routes/users.router.js";
+import authRouter from "./routes/auth.router.js";
+import rolesRouter from "./routes/roles.router.js";
+import countriesRouter from "./routes/countries.router.js";
+import categoriesRouter from "./routes/categories.router.js";
+import brandsRouter from "./routes/brands.router.js";
 app.use("/users", userRouter);
 app.use("/auth", authRouter);
 app.use("/roles", rolesRouter);
