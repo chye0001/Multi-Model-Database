@@ -73,7 +73,7 @@ services:
 
 volumes:
   database_volume:
-    name: ${DB_VOLUME_DEV}
+    name: postgres_data
   mongo_data:
   neo4j_data:
 

@@ -146,4 +146,12 @@ jobs:
             docker exec backend npx prisma generate
 
             # Run migrations
-            docker exec backend npx prisma migrate deploy
+            docker exec backend npx prisma migrate dev
+
+            # Seed Postgres database
+            docker exec backend npx prisma db seed
+
+            # Migrate data to other databases
+            docker exec backend tsx src/database/migrate.ts
+
+            
