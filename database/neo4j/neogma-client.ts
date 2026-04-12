@@ -37,7 +37,6 @@ const config: Record<Environment, {
   },
 };
 
-
 const { url, username, password, database } = config[ENV];
 if (!url || !username || !password || !database) {
   throw new Error(`Missing required Neo4j env vars for environment: ${ENV}`);
