@@ -137,8 +137,8 @@ jobs:
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           script: |
             cd /home/${{ secrets.DEPLOY_USER }}/database/backend
-            docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
-            docker compose -f docker-compose.app.yml up -d
+            docker compose -f docker-compose.app.yml pull
+            docker compose -f docker-compose.app.yml up -d --force-recreate
 
             # Wait for container to be healthy
             sleep 10
