@@ -8,7 +8,6 @@ import type { IClosetRepository } from "../interfaces/IClosetRepository.js";
 export function closetRepositoryFactory(): IClosetRepository {
     const repositories: IClosetRepository[] = [];
 
-    // Check environment variables to enable/disable databases
     if (process.env.POSTGRES_ENABLED_DEV === "true") {
         repositories.push(new PostgresClosetRepository());
     }
