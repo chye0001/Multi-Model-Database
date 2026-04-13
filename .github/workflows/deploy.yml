@@ -134,7 +134,7 @@ jobs:
 
             docker exec postgres_database sh -lc 'PGPASSWORD="$POSTGRES_PASSWORD" psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "SELECT 1;" >/dev/null'
 
-      - name: Copy docker-compose.yml to server
+      - name: Copy docker-compose.app.yml to server
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.DEPLOY_HOST }}
@@ -161,11 +161,4 @@ jobs:
             # Generate Prisma client
             docker exec backend npx prisma generate
 
-            # Run migrations
-            docker exec backend npx prisma migrate deploy
-
-            # Seed Postgres database
-            docker exec backend npx prisma db seed
-
-            # Migrate data to other databases
-            docker exec backend npx tsx database/migrate.ts
+            

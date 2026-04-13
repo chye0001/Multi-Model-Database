@@ -6,10 +6,7 @@ services:
     ports:
       - "3000:3001"
     env_file:
-      - .env
-    environment:
-      NODE_ENV: prod
-      POSTGRES_DATABASE_URL: ${POSTGRES_DATABASE_URL_PROD}
+      - .env    
     restart: unless-stopped
     networks:
       - database_network
