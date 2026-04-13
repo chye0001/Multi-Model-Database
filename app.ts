@@ -21,6 +21,8 @@ import countriesRouter from "./routes/countries.router.js";
 import categoriesRouter from "./routes/categories.router.js";
 import brandsRouter from "./routes/brands.router.js";
 import outfitRouter from "./routes/outfit.router.js";
+import closetsRouter from "./routes/closets.router.js";
+
 app.use("/users", userRouter);
 app.use("/auth", authRouter);
 app.use("/roles", rolesRouter);
@@ -28,6 +30,7 @@ app.use("/countries", countriesRouter);
 app.use("/categories", categoriesRouter);
 app.use("/brands", brandsRouter);
 app.use("/outfits", outfitRouter);
+app.use("/closets", closetsRouter);
 
 const port = 3001;
 app.listen(port, () => {
