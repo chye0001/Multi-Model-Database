@@ -2,7 +2,7 @@ name: Build and push to Dockerhub then deploy to self-hosted server
 
 on:
   push:
-    branches: ["main"]
+    branches: ["main", "deployment-fix"]
     tags: ["v*"]
 
 env:
@@ -51,22 +51,51 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  deploy:
-    needs: build-and-push
+  build-and-push-postgres:
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/')
+    permissions:
+      contents: read
+      packages: write
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Copy docker-compose.yml to server
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_PASSWORD }}
+
+      - name: Build and push Postgres image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: Dockerfilepostgress
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ secrets.DOCKER_HUB_USERNAME }}/database-postgres:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    needs: [build-and-push, build-and-push-postgres]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/deployment-fix' || startsWith(github.ref, 'refs/tags/')
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Copy database compose files to server
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
-          source: docker-compose.app.yml
+          source: docker-compose.db.yml,docker-compose.db.prod.yml
           target: /home/${{ secrets.DEPLOY_USER }}/database/backend
 
       - name: Copy .env file to server
@@ -80,6 +109,40 @@ jobs:
             ${{ secrets.ENV }}
             EOF
 
+      - name: Deploy databases
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            cd /home/${{ secrets.DEPLOY_USER }}/database/backend
+            docker compose --env-file .env -f docker-compose.db.prod.yml up -d
+
+            for attempt in $(seq 1 30); do
+              if docker exec postgres_database sh -lc 'pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"' >/dev/null 2>&1; then
+                break
+              fi
+
+              if [ "$attempt" -eq 30 ]; then
+                echo "Postgres did not become ready in time"
+                exit 1
+              fi
+
+              sleep 2
+            done
+
+            docker exec postgres_database sh -lc 'PGPASSWORD="$POSTGRES_PASSWORD" psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "SELECT 1;" >/dev/null'
+
+      - name: Copy docker-compose.app.yml to server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          source: docker-compose.app.yml
+          target: /home/${{ secrets.DEPLOY_USER }}/database/backend
+
       - name: Deploy to self-hosted server
         uses: appleboy/ssh-action@master
         with:
@@ -88,8 +151,9 @@ jobs:
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           script: |
             cd /home/${{ secrets.DEPLOY_USER }}/database/backend
-            docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
-            docker compose -f docker-compose.app.yml up -d
+            export APP_IMAGE_TAG=${{ github.ref_name }}
+            docker compose --env-file .env -f docker-compose.app.yml pull
+            docker compose --env-file .env -f docker-compose.app.yml up -d --force-recreate
 
             # Wait for container to be healthy
             sleep 10
@@ -97,5 +161,4 @@ jobs:
             # Generate Prisma client
             docker exec backend npx prisma generate
 
-            # Run migrations
-            docker exec backend npx prisma migrate deploy
+            

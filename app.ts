@@ -6,9 +6,6 @@ import { prisma } from "./database/postgres/prisma-client.js";
 import { connectMongo, disconnectMongo } from "./database/mongo/mongoose-client.js";
 import { connectNeo4j, disconnectNeo4j } from "./database/neo4j/neogma-client.js";
 
-
-
-
 const app = express();
 app.use(express.json());
 app.use(session({
@@ -42,11 +39,6 @@ app.listen(port, () => {
 
 app.get("/healthcheck", (req, res) => {
   res.status(200).send("OK");
-});
-
-app.get("/users", async (req, res) => {
-  const users = await prisma.user.findMany();
-  res.status(200).json(users);
 });
 
 process.on("SIGINT", async () => {

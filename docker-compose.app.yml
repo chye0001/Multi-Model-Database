@@ -1,11 +1,12 @@
 services:
   app:
     container_name: backend
-    image: ${DOCKER_HUB_USERNAME}/database:latest
+    image: ${DOCKER_HUB_USERNAME}/database:${APP_IMAGE_TAG:-latest}
+    platform: linux/amd64
     ports:
       - "3000:3001"
     env_file:
-      - .env
+      - .env    
     restart: unless-stopped
     networks:
       - database_network
@@ -13,4 +14,4 @@ services:
 networks:
   database_network:
     name: database_network
-  
+    

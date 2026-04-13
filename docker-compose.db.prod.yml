@@ -3,17 +3,11 @@ services:
     container_name: postgres_database
     image: ${DOCKER_HUB_USERNAME}/database-postgres:latest
     ports:
-      - ${POSTGRES_PORT_DEV}:5432
+      - ${POSTGRES_PORT_PROD}:5432
     environment:
-      POSTGRES_USER: ${POSTGRES_USER_DEV}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD_DEV}
-      POSTGRES_DB: ${POSTGRES_DB_DEV}
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 10s
+      POSTGRES_USER: ${POSTGRES_USER_PROD}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD_PROD}
+      POSTGRES_DB: ${POSTGRES_DB_PROD}
     volumes:
       - database_volume:/var/lib/postgresql/data
     networks:
@@ -25,7 +19,7 @@ services:
     ports:
       - "27018:27017"
     environment:
-      MONGO_INITDB_DATABASE: ${MONGO_DB_DEV}
+      MONGO_INITDB_DATABASE: ${MONGO_DB_PROD}
     volumes:
       - mongo_data:/data/db
     networks:
@@ -40,16 +34,16 @@ services:
     volumes:
       - neo4j_data:/data
     environment:
-      NEO4J_AUTH: ${NEO4J_USERNAME_DEV}/${NEO4J_PASSWORD_DEV}
+      NEO4J_AUTH: ${NEO4J_USERNAME_PROD}/${NEO4J_PASSWORD_PROD}
     healthcheck:
       test:
         [
           "CMD",
           "cypher-shell",
           "-u",
-          "${NEO4J_USERNAME_DEV}",
+          "${NEO4J_USERNAME_PROD}",
           "-p",
-          "${NEO4J_PASSWORD_DEV}",
+          "${NEO4J_PASSWORD_PROD}",
           "RETURN 1",
         ]
       interval: 10s
@@ -67,8 +61,8 @@ services:
     volumes:
       - ./database/neo4j/cyphers/constraints-and-indexes.cypher:/init/constraints-and-indexes.cypher:ro
     environment:
-      NEO4J_USERNAME: ${NEO4J_USERNAME_DEV}
-      NEO4J_PASSWORD: ${NEO4J_PASSWORD_DEV}
+      NEO4J_USERNAME: ${NEO4J_USERNAME_PROD}
+      NEO4J_PASSWORD: ${NEO4J_PASSWORD_PROD}
     networks:
       - database_network
     entrypoint: ["/bin/bash", "-c"]

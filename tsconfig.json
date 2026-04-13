@@ -10,7 +10,8 @@
     "module": "nodenext",
     "target": "esnext",
     "moduleResolution": "NodeNext",
-
+    "allowImportingTsExtensions": true,
+    "noEmit": true,
     // For nodejs:
     "lib": ["esnext"],
     "types": ["node"],
