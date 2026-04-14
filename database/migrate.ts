@@ -256,29 +256,57 @@ async function migrate() {
 
   await step("Mongo: Closets", async () => {
     await Closet.insertMany(
-      pgClosets.map((cl) => ({
-        id:          Number(cl.id),
-        name:        cl.name,
-        description: cl.description ?? "",
-        isPublic:    cl.isPublic,
-        createdAt:   cl.createdAt,
-        userId:      mongoUserMap.get(
-          // Postgres userId is an integer FK; User.id in Mongo is a UUID string.
-          // Look up the Postgres user to get the UUID.
-          pgUsers.find((u) => u.id === cl.userId)?.id ?? ""
-        ),
-        // Resolve ClosetItem join table → array of item ObjectIds
-        itemIds: cl.closetItem.map((ci) =>
-          mongoItemMap.get(Number(ci.item.id))
-        ).filter(Boolean),
-        sharedWith: pgSharedClosets
-          .filter((sc) => Number(sc.closetId) === Number(cl.id))
-          .map((sc) => ({
-            userId: mongoUserMap.get(
-              pgUsers.find((u) => u.id === sc.userId)?.id ?? ""
-            ),
-          })),
-      }))
+      pgClosets.map((cl) => {
+        const pgUser = pgUsers.find((u) => u.id === cl.userId)!;
+        return {
+          id:          Number(cl.id),
+          name:        cl.name,
+          description: cl.description ?? null,
+          isPublic:    cl.isPublic,
+          createdAt:   cl.createdAt,
+          userId:      mongoUserMap.get(pgUser.id),
+          items: cl.closetItem.map((ci) => {
+            const item    = ci.item;
+            const pgItem  = pgItems.find((i) => Number(i.id) === Number(item.id))!;
+            return {
+              id:    Number(item.id),
+              name:  item.name,
+              price: item.price === null ? null : Number(item.price),
+              category: {
+                categoryId: pgItem.category.id,
+                name:       pgItem.category.name,
+              },
+              brands: pgItem.itemBrands.map((ib) => {
+                const country = pgCountries.find((c) => c.id === ib.brand.countryId)!;
+                return {
+                  id:   ib.brand.id,
+                  name: ib.brand.name,
+                  country: {
+                    id:          country.id,
+                    name:        country.name,
+                    countryCode: country.countryCode,
+                  },
+                };
+              }),
+              images: pgItem.images.map((img) => ({
+                id:  Number(img.id),
+                url: img.url,
+              })),
+            };
+          }),
+          sharedWith: pgSharedClosets
+            .filter((sc) => Number(sc.closetId) === Number(cl.id))
+            .map((sc) => {
+              const sharedUser = pgUsers.find((u) => u.id === sc.userId)!;
+              return {
+                id:        sharedUser.id,
+                firstName: sharedUser.firstName,
+                lastName:  sharedUser.lastName,
+                email:     sharedUser.email,
+              };
+            }),
+        };
+      })
     );
   });
 
