@@ -300,21 +300,17 @@ async function migrate() {
   await step("Mongo: Outfits", async () => {
     await Outfit.insertMany(
       pgOutfits.map((outfit) => {
-        // 1. Resolve Creator
-        const creator = pgUsers.find((u) => u.id === outfit.createdBy)!;
-        
+        const pgCreator = pgUsers.find((u) => u.id === outfit.createdBy)!;
         return {
-          id:        Number(outfit.id),
-          name:      outfit.name,
-          style:     outfit.style,
-          dateAdded: outfit.dateAdded,
+          id:    Number(outfit.id),
+          name:  outfit.name,
+          style: outfit.style,
           createdBy: {
-            id:        creator.id,
-            firstName: creator.firstName,
-            lastName:  creator.lastName,
-            email:     creator.email
+            id:        pgCreator.id,
+            firstName: pgCreator.firstName,
+            lastName:  pgCreator.lastName,
+            email:     pgCreator.email,
           },
-          // 2. Map Denormalized Items
           items: outfit.outfitItems.map((oi) => {
             const pgItem = pgItems.find((i) => Number(i.id) === Number(oi.closetItem.item.id))!;
             return {
@@ -337,22 +333,25 @@ async function migrate() {
                   },
                 };
               }),
+              images: pgItem.images.map((img) => ({  // ← added
+                id:  Number(img.id),
+                url: img.url,
+              })),
             };
           }),
-          // 3. Map Denormalized Reviews
           reviews: (reviewsByOutfit.get(Number(outfit.id)) ?? []).map((r) => {
             const reviewer = pgUsers.find((u) => u.id === r.writtenBy)!;
             return {
-              id:          Number(r.id),
-              score:       r.score,
-              text:        r.text ?? "",
-              dateWritten: r.dateWritten,
+              id:    Number(r.id),
+              score: r.score,
+              text:  r.text ?? "",
               writtenBy: {
                 id:        reviewer.id,
                 firstName: reviewer.firstName,
                 lastName:  reviewer.lastName,
-                email:     reviewer.email
-              }
+                email:     reviewer.email,
+              },
+              dateWritten: r.dateWritten,
             };
           }),
         };

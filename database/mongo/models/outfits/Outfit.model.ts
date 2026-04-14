@@ -1,7 +1,6 @@
 import mongoose, { Schema, Document, Model } from "mongoose";
 import { stripInternalIdField } from "../../../../utils/repository_utils/MongooseUtil.js";
 
-// Reusable nested User sub-schema (for createdBy and writtenBy)
 const CompactUserSchema = {
   id:        { type: String, required: true },
   firstName: { type: String, required: true },
@@ -33,7 +32,14 @@ export interface IOutfit extends Document {
     lastName: string;
     email: string;
   };
-  items: any[]; // Denormalized items
+  items: {
+    id: number;
+    name: string;
+    price: number | null;
+    category: { categoryId: number; name: string };
+    brands: { id: number; name: string; country: { id: number; name: string; countryCode: string } }[];
+    images: { id: number; url: string }[];
+  }[];
   reviews: IReview[];
 }
 
@@ -72,6 +78,12 @@ const OutfitSchema = new Schema<IOutfit>(
               name:        { type: String },
               countryCode: { type: String }
             }
+          }
+        ],
+        images: [
+          {
+            id:  { type: Number, required: true },
+            url: { type: String, required: true, trim: true }
           }
         ]
       }
