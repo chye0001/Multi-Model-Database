@@ -178,24 +178,29 @@ async function migrate() {
   );
 
   await step("Mongo: Users", async () => {
-    await User.insertMany(
-      pgUsers.map((u) => {
-        const role = pgRoleMap.get(u.roleId)!;
-        return {
-          id:        u.id,           // UUID string from Postgres
-          email:     u.email,
-          password: u.password,
-          firstName: u.firstName,
-          lastName:  u.lastName,
-          role: {
-            id:   role.id,
-            name: role.role,         // Prisma schema uses `role` field name
-          },
-          country: mongoCountriesMap.get(u.countryId),
-        };
-      })
-    );
-  });
+  await User.insertMany(
+    pgUsers.map((u) => {
+      const role    = pgRoleMap.get(u.roleId)!;
+      const country = pgCountries.find((c) => c.id === u.countryId)!;
+      return {
+        id:        u.id,
+        email:     u.email,
+        password:  u.password,
+        firstName: u.firstName,
+        lastName:  u.lastName,
+        role: {
+          id:   role.id,
+          name: role.role,
+        },
+        country: {
+          id:          country.id,
+          name:        country.name,
+          countryCode: country.countryCode,
+        },
+      };
+    })
+  );
+});
 
   // Items — embed category, resolve brand ObjectIds from the join table,
   // and embed images as sub-documents.
