@@ -3,7 +3,7 @@ services:
     container_name: postgres_database
     image: ${DOCKER_HUB_USERNAME}/database-postgres:latest
     ports:
-      - ${POSTGRES_PORT_PROD}:5432
+      - 127.0.0.1:${POSTGRES_PORT_PROD}:5432
     environment:
       POSTGRES_USER: ${POSTGRES_USER_PROD}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD_PROD}
