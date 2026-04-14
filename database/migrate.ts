@@ -265,35 +265,9 @@ async function migrate() {
           isPublic:    cl.isPublic,
           createdAt:   cl.createdAt,
           userId:      mongoUserMap.get(pgUser.id),
-          items: cl.closetItem.map((ci) => {
-            const item    = ci.item;
-            const pgItem  = pgItems.find((i) => Number(i.id) === Number(item.id))!;
-            return {
-              id:    Number(item.id),
-              name:  item.name,
-              price: item.price === null ? null : Number(item.price),
-              category: {
-                categoryId: pgItem.category.id,
-                name:       pgItem.category.name,
-              },
-              brands: pgItem.itemBrands.map((ib) => {
-                const country = pgCountries.find((c) => c.id === ib.brand.countryId)!;
-                return {
-                  id:   ib.brand.id,
-                  name: ib.brand.name,
-                  country: {
-                    id:          country.id,
-                    name:        country.name,
-                    countryCode: country.countryCode,
-                  },
-                };
-              }),
-              images: pgItem.images.map((img) => ({
-                id:  Number(img.id),
-                url: img.url,
-              })),
-            };
-          }),
+          itemIds:     cl.closetItem.map((ci) =>
+            mongoItemMap.get(Number(ci.item.id))
+          ).filter(Boolean),
           sharedWith: pgSharedClosets
             .filter((sc) => Number(sc.closetId) === Number(cl.id))
             .map((sc) => {
