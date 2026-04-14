@@ -195,6 +195,7 @@ async function migrate() {
           password:  u.password,
           firstName: u.firstName,
           lastName:  u.lastName,
+          createdAt: u.createdAt,
           role: {
             id:   role.id,
             name: role.role,
