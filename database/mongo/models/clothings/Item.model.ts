@@ -1,24 +1,47 @@
 import mongoose, { Schema, Document, Model } from "mongoose";
 import { stripInternalIdField } from "../../../../utils/repository_utils/MongooseUtil.js";
 
-
-
-// import type { ICategory } from "../clothings/Category.model.js";
-// import { CategorySchema } from "../clothings/Category.model.js";
-
 export interface IEmbeddedCategory {
-  id: number;   // id copied from the category document
-  name: string; // denormalised name for fast reads
+  categoryId: number;
+  name: string;
 }
 
 const EmbeddedCategorySchema = new Schema<IEmbeddedCategory>(
   {
-    id:   { type: Number, required: true }, // id reference to categories collection
-    name: { type: String, required: true, trim: true },
+    categoryId: { type: Number, required: true },
+    name:       { type: String, required: true, trim: true },
   },
+  { _id: false }
+);
+
+export interface IEmbeddedCountry {
+  id: number;
+  name: string;
+  countryCode: string;
+}
+
+const EmbeddedCountrySchema = new Schema<IEmbeddedCountry>(
   {
-    _id: false, // no ObjectId — this is not a standalone document
-  }
+    id:          { type: Number, required: true },
+    name:        { type: String, required: true, trim: true },
+    countryCode: { type: String, required: true, trim: true, uppercase: true },
+  },
+  { _id: false }
+);
+
+export interface IEmbeddedBrand {
+  id: number;
+  name: string;
+  country: IEmbeddedCountry;
+}
+
+const EmbeddedBrandSchema = new Schema<IEmbeddedBrand>(
+  {
+    id:      { type: Number, required: true },
+    name:    { type: String, required: true, trim: true },
+    country: { type: EmbeddedCountrySchema, required: true },
+  },
+  { _id: false }
 );
 
 export interface IImage {
@@ -31,20 +54,15 @@ const ImageSchema = new Schema<IImage>(
     id:  { type: Number, required: true },
     url: { type: String, required: true, trim: true },
   },
-  {
-    _id: false, // embedded sub-document, no own ObjectId needed
-  }
+  { _id: false }
 );
-
-
-
 
 export interface IItem extends Document {
   id: number;
   name: string;
   price: number | null;
   category: IEmbeddedCategory;
-  brandIds: mongoose.Types.ObjectId[];
+  brands: IEmbeddedBrand[];
   images: IImage[];
 }
 
@@ -54,13 +72,12 @@ const ItemSchema = new Schema<IItem>(
     name:     { type: String, required: true, trim: true },
     price:    { type: Number, default: null },
     category: { type: EmbeddedCategorySchema, required: true },
-    brandIds: [{ type: Schema.Types.ObjectId, ref: "Brand" }],
+    brands:   [EmbeddedBrandSchema],
     images:   [ImageSchema],
   },
   {
     versionKey: false,
-     // 1. Disable the built-in Mongoose 'id' virtual to avoid conflict with your UUID 'id'
-    id: false, 
+    id: false,
     toJSON: { transform: stripInternalIdField }
   }
 );

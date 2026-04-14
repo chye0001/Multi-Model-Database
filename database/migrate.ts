@@ -222,16 +222,23 @@ async function migrate() {
       pgItems.map((item) => ({
         id:    Number(item.id),
         name:  item.name,
-        price: item.price === null ? 0 : Number(item.price),
+        price: item.price === null ? null : Number(item.price),
         category: {
-          id:   item.category.id,
-          name: item.category.name,
+          categoryId: item.category.id,
+          name:       item.category.name,
         },
-        // Many-to-many brands via ItemBrand join table → array of ObjectIds
-        brandIds: item.itemBrands.map((ib) =>
-          mongoBrandPgIdMap.get(ib.brand.id)
-        ).filter(Boolean),
-        // Embed images as sub-documents (Mongo schema) — in Neo4j these are separate nodes.
+        brands: item.itemBrands.map((ib) => {
+          const country = pgCountries.find((c) => c.id === ib.brand.countryId)!;
+          return {
+            id:   ib.brand.id,
+            name: ib.brand.name,
+            country: {
+              id:          country.id,
+              name:        country.name,
+              countryCode: country.countryCode,
+            },
+          };
+        }),
         images: item.images.map((img) => ({
           id:  Number(img.id),
           url: img.url,
