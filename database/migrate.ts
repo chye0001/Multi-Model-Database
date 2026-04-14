@@ -325,29 +325,64 @@ async function migrate() {
 
   await step("Mongo: Outfits", async () => {
     await Outfit.insertMany(
-      pgOutfits.map((outfit) => ({
-        id:        Number(outfit.id),
-        name:      outfit.name,
-        style:     outfit.style,
-        createdBy: mongoUserMap.get(
-          pgUsers.find((u) => u.id === outfit.createdBy)?.id ?? ""
-        ),
-        dateAdded: outfit.dateAdded,
-        // Flatten OutfitItem → ClosetItem → Item into direct item ObjectIds
-        itemIds: outfit.outfitItems.map((oi) =>
-          mongoOutfitItemMap.get(Number(oi.closetItem.item.id))
-        ).filter(Boolean),
-        // Embed reviews — in Postgres they're a separate table; here they're inline
-        reviews: (reviewsByOutfit.get(Number(outfit.id)) ?? []).map((r) => ({
-          id:          Number(r.id),
-          score:       r.score,
-          text:        r.text ?? "",
-          writtenBy:   mongoUserMap.get(
-            pgUsers.find((u) => u.id === r.writtenBy)?.id ?? ""
-          ),
-          dateWritten: r.dateWritten,
-        })),
-      }))
+      pgOutfits.map((outfit) => {
+        // 1. Resolve Creator
+        const creator = pgUsers.find((u) => u.id === outfit.createdBy)!;
+        
+        return {
+          id:        Number(outfit.id),
+          name:      outfit.name,
+          style:     outfit.style,
+          dateAdded: outfit.dateAdded,
+          createdBy: {
+            id:        creator.id,
+            firstName: creator.firstName,
+            lastName:  creator.lastName,
+            email:     creator.email
+          },
+          // 2. Map Denormalized Items
+          items: outfit.outfitItems.map((oi) => {
+            const pgItem = pgItems.find((i) => Number(i.id) === Number(oi.closetItem.item.id))!;
+            return {
+              id:    Number(pgItem.id),
+              name:  pgItem.name,
+              price: pgItem.price === null ? null : Number(pgItem.price),
+              category: {
+                categoryId: pgItem.category.id,
+                name:       pgItem.category.name,
+              },
+              brands: pgItem.itemBrands.map((ib) => {
+                const country = pgCountries.find((c) => c.id === ib.brand.countryId)!;
+                return {
+                  id:   ib.brand.id,
+                  name: ib.brand.name,
+                  country: {
+                    id:          country.id,
+                    name:        country.name,
+                    countryCode: country.countryCode,
+                  },
+                };
+              }),
+            };
+          }),
+          // 3. Map Denormalized Reviews
+          reviews: (reviewsByOutfit.get(Number(outfit.id)) ?? []).map((r) => {
+            const reviewer = pgUsers.find((u) => u.id === r.writtenBy)!;
+            return {
+              id:          Number(r.id),
+              score:       r.score,
+              text:        r.text ?? "",
+              dateWritten: r.dateWritten,
+              writtenBy: {
+                id:        reviewer.id,
+                firstName: reviewer.firstName,
+                lastName:  reviewer.lastName,
+                email:     reviewer.email
+              }
+            };
+          }),
+        };
+      })
     );
   });
 
