@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { reviewRepositoryFactory } from "../repositories/factories/ReviewRepositoryFactory.js";
-import { ReviewService } from "../services/ReviewService.ts";
+import { ReviewService } from "../services/ReviewService.js";  // ✅ FIX: .js not .ts
 import { ReviewController } from "../controllers/ReviewController.js";
 
 const router = Router();
@@ -14,8 +14,5 @@ router.get("/:id", reviewController.getReviewById);
 router.post("/", reviewController.createReview);
 router.patch("/:id", reviewController.updateReview);
 router.delete("/:id", reviewController.deleteReview);
-
-router.get("/outfits/:id", reviewController.getReviewsByOutfitId);
-router.get("/users/:id", reviewController.getReviewsByUserId);
 
 export default router;
