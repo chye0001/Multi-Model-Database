@@ -161,11 +161,18 @@ async function migrate() {
 
   await step("Mongo: Brands", async () => {
     await Brand.insertMany(
-      pgBrands.map((b) => ({
-        id:        b.id,
-        name:      b.name,
-        countryId: pgIdToMongoCountry.get(b.countryId),
-      }))
+      pgBrands.map((b) => {
+        const country = pgCountries.find((c) => c.id === b.countryId)!;
+        return {
+          id:   b.id,
+          name: b.name,
+          country: {
+            id:          country.id,
+            name:        country.name,
+            countryCode: country.countryCode,
+          },
+        };
+      })
     );
   });
 
@@ -178,29 +185,29 @@ async function migrate() {
   );
 
   await step("Mongo: Users", async () => {
-  await User.insertMany(
-    pgUsers.map((u) => {
-      const role    = pgRoleMap.get(u.roleId)!;
-      const country = pgCountries.find((c) => c.id === u.countryId)!;
-      return {
-        id:        u.id,
-        email:     u.email,
-        password:  u.password,
-        firstName: u.firstName,
-        lastName:  u.lastName,
-        role: {
-          id:   role.id,
-          name: role.role,
-        },
-        country: {
-          id:          country.id,
-          name:        country.name,
-          countryCode: country.countryCode,
-        },
-      };
-    })
-  );
-});
+    await User.insertMany(
+      pgUsers.map((u) => {
+        const role    = pgRoleMap.get(u.roleId)!;
+        const country = pgCountries.find((c) => c.id === u.countryId)!;
+        return {
+          id:        u.id,
+          email:     u.email,
+          password:  u.password,
+          firstName: u.firstName,
+          lastName:  u.lastName,
+          role: {
+            id:   role.id,
+            name: role.role,
+          },
+          country: {
+            id:          country.id,
+            name:        country.name,
+            countryCode: country.countryCode,
+          },
+        };
+      })
+    );
+  });
 
   // Items — embed category, resolve brand ObjectIds from the join table,
   // and embed images as sub-documents.
