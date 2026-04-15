@@ -1,6 +1,15 @@
 import type { Country } from "../countries/Country.dto.js";
+import type { Role } from "../roles/Role.dto.js";
 
 
+
+// partial user data as not all user data is needed.
+export type EmbeddedUser = {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+}
 
 export type User = {
   id: string;
@@ -9,10 +18,10 @@ export type User = {
   firstName: string;
   lastName: string;
   createdAt: Date;
-  role: string;
+  role: Role;
   country: Country;
-  fromDatabase?: string; // just to distinguish the source of the data, not a real field in the database
-};
+  fromDatabase?: string;
+}
 
 export type CreateUserRequest = {
   id: string;

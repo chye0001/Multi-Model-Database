@@ -1,5 +1,6 @@
 import type { ClothingItem } from "../items/Item.dto.js";
 import type { Review } from "../reviews/Review.dto.js";
+import type { EmbeddedUser } from "../users/User.dto.ts";
 
 
 
@@ -8,8 +9,8 @@ export type Outfit = {
   name: string;
   style: string;
   dateAdded: Date;
-  createdBy: string; // userId
+  createdBy: EmbeddedUser;   // was string (userId), now a user snapshot
   items: ClothingItem[];
   reviews: Review[];
-  fromDatabase?: string; // just to distinguish the source of the data, not a real field in the database
+  fromDatabase?: string;
 }

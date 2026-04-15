@@ -14,30 +14,32 @@ export class Neo4jOutfitRepository implements IOutfitRepository {
            OPTIONAL MATCH (u:User)-[:CREATES]->(o)
            OPTIONAL MATCH (o)-[:CONTAINS]->(i:Item)
            OPTIONAL MATCH (i)-[:MADE_BY]->(b:Brand)
+           OPTIONAL MATCH (b)-[:IS_FROM]->(country:Country)
            OPTIONAL MATCH (i)-[:BELONGS_TO]->(cat:Category)
            OPTIONAL MATCH (i)-[:HAS]->(img:Image)
            OPTIONAL MATCH (reviewer:User)-[w:WRITES]->(rv:Review)-[:ABOUT]->(o)
-           WITH o, u, i, b, cat, img, rv, w, reviewer
+           WITH o, u, i, b, country, cat, img, rv, w, reviewer
            RETURN o,
                u.id AS createdBy,
                o.dateAdded AS dateAdded,
                collect(DISTINCT { id: i.id, name: i.name, price: i.price, category: cat.name }) AS rawItems,
-               collect(DISTINCT { itemId: i.id, brandId: b.id, brandName: b.name }) AS rawBrands,
+               collect(DISTINCT { itemId: i.id, brandId: b.id, brandName: b.name, countryId: country.id, countryName: country.name, countryCode: country.countryCode }) AS rawBrands,
                collect(DISTINCT { itemId: i.id, imageId: img.id, imageUrl: img.url }) AS rawImages,
                collect(DISTINCT { id: rv.id, score: rv.score, text: rv.text, writtenBy: reviewer.id, dateWritten: w.dateWritten, outfitId: o.id }) AS rawReviews`
                 : `MATCH (o:Outfit)
            OPTIONAL MATCH (u:User)-[:CREATES]->(o)
            OPTIONAL MATCH (o)-[:CONTAINS]->(i:Item)
            OPTIONAL MATCH (i)-[:MADE_BY]->(b:Brand)
+           OPTIONAL MATCH (b)-[:IS_FROM]->(country:Country)
            OPTIONAL MATCH (i)-[:BELONGS_TO]->(cat:Category)
            OPTIONAL MATCH (i)-[:HAS]->(img:Image)
            OPTIONAL MATCH (reviewer:User)-[w:WRITES]->(rv:Review)-[:ABOUT]->(o)
-           WITH o, u, i, b, cat, img, rv, w, reviewer
+           WITH o, u, i, b, country, cat, img, rv, w, reviewer
            RETURN o,
                u.id AS createdBy,
                o.dateAdded AS dateAdded,
                collect(DISTINCT { id: i.id, name: i.name, price: i.price, category: cat.name }) AS rawItems,
-               collect(DISTINCT { itemId: i.id, brandId: b.id, brandName: b.name }) AS rawBrands,
+               collect(DISTINCT { itemId: i.id, brandId: b.id, brandName: b.name, countryId: country.id, countryName: country.name, countryCode: country.countryCode }) AS rawBrands,
                collect(DISTINCT { itemId: i.id, imageId: img.id, imageUrl: img.url }) AS rawImages,
                collect(DISTINCT { id: rv.id, score: rv.score, text: rv.text, writtenBy: reviewer.id, dateWritten: w.dateWritten, outfitId: o.id }) AS rawReviews`;
 
@@ -57,15 +59,16 @@ export class Neo4jOutfitRepository implements IOutfitRepository {
          OPTIONAL MATCH (u:User)-[:CREATES]->(o)
          OPTIONAL MATCH (o)-[:CONTAINS]->(i:Item)
          OPTIONAL MATCH (i)-[:MADE_BY]->(b:Brand)
+         OPTIONAL MATCH (b)-[:IS_FROM]->(country:Country)
          OPTIONAL MATCH (i)-[:BELONGS_TO]->(cat:Category)
          OPTIONAL MATCH (i)-[:HAS]->(img:Image)
          OPTIONAL MATCH (reviewer:User)-[w:WRITES]->(rv:Review)-[:ABOUT]->(o)
-         WITH o, u, i, b, cat, img, rv, w, reviewer
+         WITH o, u, i, b, country, cat, img, rv, w, reviewer
          RETURN o,
              u.id AS createdBy,
              o.dateAdded AS dateAdded,
              collect(DISTINCT { id: i.id, name: i.name, price: i.price, category: cat.name }) AS rawItems,
-             collect(DISTINCT { itemId: i.id, brandId: b.id, brandName: b.name }) AS rawBrands,
+             collect(DISTINCT { itemId: i.id, brandId: b.id, brandName: b.name, countryId: country.id, countryName: country.name, countryCode: country.countryCode }) AS rawBrands,
              collect(DISTINCT { itemId: i.id, imageId: img.id, imageUrl: img.url }) AS rawImages,
              collect(DISTINCT { id: rv.id, score: rv.score, text: rv.text, writtenBy: reviewer.id, dateWritten: w.dateWritten, outfitId: o.id }) AS rawReviews`,
                 { id: numericId }
@@ -196,15 +199,16 @@ export class Neo4jOutfitRepository implements IOutfitRepository {
                 `MATCH (u:User {id: $userId})-[rel:CREATES]->(o:Outfit)
          OPTIONAL MATCH (o)-[:CONTAINS]->(i:Item)
          OPTIONAL MATCH (i)-[:MADE_BY]->(b:Brand)
+         OPTIONAL MATCH (b)-[:IS_FROM]->(country:Country)
          OPTIONAL MATCH (i)-[:BELONGS_TO]->(cat:Category)
          OPTIONAL MATCH (i)-[:HAS]->(img:Image)
          OPTIONAL MATCH (reviewer:User)-[w:WRITES]->(rv:Review)-[:ABOUT]->(o)
-         WITH o, u, rel, i, b, cat, img, rv, w, reviewer
+         WITH o, u, rel, i, b, country, cat, img, rv, w, reviewer
          RETURN o,
              u.id AS createdBy,
              rel.dateAdded AS dateAdded,
              collect(DISTINCT { id: i.id, name: i.name, price: i.price, category: cat.name }) AS rawItems,
-             collect(DISTINCT { itemId: i.id, brandId: b.id, brandName: b.name }) AS rawBrands,
+             collect(DISTINCT { itemId: i.id, brandId: b.id, brandName: b.name, countryId: country.id, countryName: country.name, countryCode: country.countryCode }) AS rawBrands,
              collect(DISTINCT { itemId: i.id, imageId: img.id, imageUrl: img.url }) AS rawImages,
              collect(DISTINCT { id: rv.id, score: rv.score, text: rv.text, writtenBy: reviewer.id, dateWritten: w.dateWritten, outfitId: o.id }) AS rawReviews`,
                 { userId }

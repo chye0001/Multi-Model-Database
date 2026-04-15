@@ -1,24 +1,34 @@
 import mongoose, { Schema, Document, Model } from "mongoose";
 import { stripInternalIdField } from "../../../../utils/repository_utils/MongooseUtil.js";
 
-
-export interface IRole {
+// Embedded sub-document interfaces
+export interface IEmbeddedRole {
   id: number;
   name: string;
 }
 
-const RoleSchema = new Schema<IRole>(
+export interface IEmbeddedCountry {
+  id: number;
+  name: string;
+  countryCode: string;
+}
+
+const EmbeddedRoleSchema = new Schema<IEmbeddedRole>(
   {
-    id: { type: Number, required: true },
+    id:   { type: Number, required: true },
     name: { type: String, required: true, trim: true, lowercase: true },
   },
-  {
-    _id: false, // embedded sub-document, no own ObjectId needed
-  }
+  { _id: false }
 );
 
-
-
+const EmbeddedCountrySchema = new Schema<IEmbeddedCountry>(
+  {
+    id:          { type: Number, required: true },
+    name:        { type: String, required: true, trim: true },
+    countryCode: { type: String, required: true, trim: true, uppercase: true },
+  },
+  { _id: false }
+);
 
 export interface IUser extends Document {
   id: string;
@@ -27,8 +37,8 @@ export interface IUser extends Document {
   firstName: string;
   lastName: string;
   createdAt: Date;
-  role: IRole;
-  country: mongoose.Types.ObjectId;
+  role: IEmbeddedRole;
+  country: IEmbeddedCountry;
 }
 
 const UserSchema = new Schema<IUser>(
@@ -38,18 +48,16 @@ const UserSchema = new Schema<IUser>(
     password:  { type: String, required: true },
     firstName: { type: String, required: true, trim: true },
     lastName:  { type: String, required: true, trim: true },
-    role:      { type: RoleSchema, required: true },
-    country: { type: Schema.Types.ObjectId, ref: "Country", required: true },
+    role:      { type: EmbeddedRoleSchema, required: true },
+    country:   { type: EmbeddedCountrySchema, required: true },
   },
   {
     timestamps: { createdAt: true, updatedAt: false },
     versionKey: false,
-    // 1. Disable the built-in Mongoose 'id' virtual to avoid conflict with your UUID 'id'
-    id: false, 
+    id: false,
     toJSON: { transform: stripInternalIdField }
   }
 );
 
 export const User: Model<IUser> =
   mongoose.models.User ?? mongoose.model<IUser>("User", UserSchema);
-  

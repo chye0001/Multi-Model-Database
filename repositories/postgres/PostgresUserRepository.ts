@@ -1,7 +1,5 @@
 import type { IUserRepository } from '../interfaces/IUserRepository.js';
-
 import { formatUser, formatUserOutfit, formatUserCloset, formatUserReview } from "../../utils/repository_utils/ObjectFormatters.js";
-
 import type { CreateUserRequest, UpdateUserRequest, User } from '../../dtos/users/User.dto.js';
 import type { Closet } from '../../dtos/closets/Closet.dto.js';
 import type { Outfit } from '../../dtos/outfits/Outfit.dto.js';
@@ -9,19 +7,17 @@ import type { Review } from '../../dtos/reviews/Review.dto.js';
 
 import { prisma } from '../../database/postgres/prisma-client.js';
 
-
-
 export class PostgresUserRepository implements IUserRepository {
-    
+
     async getAllUsers(): Promise<User[]> {
         try {
             const users = await prisma.user.findMany({
                 include: {
-                    role: true,
+                    role:    true,
                     country: true
                 }
             });
-            
+
             return users.map(user => formatUser(user, "PostgreSQL"));
 
         } catch (error) {
@@ -35,14 +31,12 @@ export class PostgresUserRepository implements IUserRepository {
             const user = await prisma.user.findUnique({
                 where: { id },
                 include: {
-                    role: true,
+                    role:    true,
                     country: true
                 }
             });
 
-            if (!user) {
-                return [];
-            }
+            if (!user) return [];
 
             return [formatUser(user, "PostgreSQL")];
 
@@ -56,16 +50,16 @@ export class PostgresUserRepository implements IUserRepository {
         try {
             const newUser = await prisma.user.create({
                 data: {
-                    id: data.id,
-                    email: data.email,
-                    password: data.password,
+                    id:        data.id,
+                    email:     data.email,
+                    password:  data.password,
                     firstName: data.firstName,
-                    lastName: data.lastName,
-                    roleId: 2, // default user role
+                    lastName:  data.lastName,
+                    roleId:    2,
                     countryId: data.countryId
                 },
                 include: {
-                    role: true,
+                    role:    true,
                     country: true
                 }
             });
@@ -80,19 +74,19 @@ export class PostgresUserRepository implements IUserRepository {
 
     async updateUser(id: string, data: UpdateUserRequest): Promise<User[]> {
         try {
-            if ( !data.firstName || !data.lastName || !data.countryId) {
-                throw new Error(`Missing required data to update. Data recived: ${data}`)
+            if (!data.firstName || !data.lastName || !data.countryId) {
+                throw new Error(`Missing required data to update. Data received: ${JSON.stringify(data)}`);
             }
-            
+
             const updatedUser = await prisma.user.update({
                 where: { id },
                 data: {
                     firstName: data.firstName,
-                    lastName: data.lastName,
+                    lastName:  data.lastName,
                     countryId: data.countryId
                 },
                 include: {
-                    role: true,
+                    role:    true,
                     country: true
                 }
             });
@@ -107,9 +101,7 @@ export class PostgresUserRepository implements IUserRepository {
 
     async deleteUser(id: string): Promise<void> {
         try {
-            await prisma.user.delete({
-                where: { id }
-            });
+            await prisma.user.delete({ where: { id } });
 
         } catch (error) {
             console.error("Error deleting user from PostgreSQL:", error);
@@ -117,19 +109,19 @@ export class PostgresUserRepository implements IUserRepository {
         }
     }
 
-
-
-    async assignRole(userEmail: string, roleName: string): Promise<any[]> {
+    async assignRole(userEmail: string, roleName: string): Promise<User[]> {
         try {
             const updated = await prisma.user.update({
                 where: { email: userEmail },
-                data: { role: { connect: { role: roleName } } },
+                data:  { role: { connect: { role: roleName } } },
                 include: { role: true, country: true },
             });
-            return [formatUser(updated, 'PostgreSQL')];
+
+            return [formatUser(updated, "PostgreSQL")];
+
         } catch (error) {
-            console.error(`Error assigning role to user with email ${userEmail} in PostgreSQL:`, error);
-            throw new Error(`Failed to assign role in PostgreSQL`);
+            console.error(`Error assigning role to user ${userEmail} in PostgreSQL:`, error);
+            throw new Error("Failed to assign role in PostgreSQL");
         }
     }
 
@@ -138,8 +130,12 @@ export class PostgresUserRepository implements IUserRepository {
             const closets = await prisma.closet.findMany({
                 where: { userId },
                 include: {
-                    closetItem: true,
-                    sharedCloset: true
+                    closetItem:   true,
+                    sharedCloset: {
+                        include: {
+                            user: true  // needed to build the sharedWith snapshot
+                        }
+                    }
                 }
             });
 
@@ -147,7 +143,7 @@ export class PostgresUserRepository implements IUserRepository {
 
         } catch (error) {
             console.error("Error fetching user closets from PostgreSQL:", error);
-            throw new Error(`Failed to fetch closets for user with id ${userId} from PostgreSQL`);
+            throw new Error(`Failed to fetch closets for user ${userId} from PostgreSQL`);
         }
     }
 
@@ -156,30 +152,33 @@ export class PostgresUserRepository implements IUserRepository {
             const outfits = await prisma.outfit.findMany({
                 where: { createdBy: userId },
                 include: {
+                    user: true,   // needed to build the createdBy snapshot
                     outfitItems: {
                         include: {
                             closetItem: {
                                 include: {
                                     item: {
                                         include: {
-                                            category: true,
-                                            images: true,
+                                            category:   true,
+                                            images:     true,
                                             itemBrands: {
                                                 include: {
                                                     brand: {
-                                                        include: {
-                                                            country: true
-                                                        }
+                                                        include: { country: true }
                                                     }
                                                 }
                                             }
-                                        }   
-                                    } 
-                                } 
+                                        }
+                                    }
+                                }
                             }
                         }
                     },
-                    reviews: true
+                    reviews: {
+                        include: {
+                            user: true  // needed to build the writtenBy snapshot
+                        }
+                    }
                 }
             });
 
@@ -187,44 +186,44 @@ export class PostgresUserRepository implements IUserRepository {
 
         } catch (error) {
             console.error("Error fetching user outfits from PostgreSQL:", error);
-            throw new Error(`Failed to fetch outfits for user with id ${userId} from PostgreSQL`);
+            throw new Error(`Failed to fetch outfits for user ${userId} from PostgreSQL`);
         }
     }
 
     async getAllReviewsByUserId(userId: string): Promise<Review[]> {
         try {
             const reviews = await prisma.review.findMany({
-                where: { writtenBy: userId }
+                where: { writtenBy: userId },
+                include: {
+                    user: true  // needed to build the writtenBy snapshot
+                }
             });
 
             return reviews.map(review => formatUserReview(review, "postgresql"));
 
         } catch (error) {
             console.error("Error fetching user reviews from PostgreSQL:", error);
-            throw new Error(`Failed to fetch reviews for user with id ${userId} from PostgreSQL`);
+            throw new Error(`Failed to fetch reviews for user ${userId} from PostgreSQL`);
         }
     }
 
     async getAllSharedClosetsByUserId(userId: string): Promise<Closet[]> {
         try {
-            // Get all closets that are shared with this user
             const sharedClosets = await prisma.closet.findMany({
-                where: { 
+                where: {
                     sharedCloset: {
-                        some: {
-                            userId: userId // closets shared with this user
-                        }
+                        some: { userId }
                     }
                 },
                 include: {
-                    sharedCloset: {
-                        include: {
-                            user: true // include the users the closet is shared with
-                        }
-                    },
                     closetItem: {
                         include: {
                             item: true
+                        }
+                    },
+                    sharedCloset: {
+                        include: {
+                            user: true  // needed to build the sharedWith snapshot
                         }
                     }
                 }
@@ -233,8 +232,8 @@ export class PostgresUserRepository implements IUserRepository {
             return sharedClosets.map(closet => formatUserCloset(closet, "postgresql"));
 
         } catch (error) {
-            console.error("Error fetching shared closets for user from PostgreSQL:", error);
-            throw new Error(`Failed to fetch shared closets for user with id ${userId} from PostgreSQL`);
+            console.error("Error fetching shared closets from PostgreSQL:", error);
+            throw new Error(`Failed to fetch shared closets for user ${userId} from PostgreSQL`);
         }
     }
 }

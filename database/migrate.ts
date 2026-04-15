@@ -161,11 +161,18 @@ async function migrate() {
 
   await step("Mongo: Brands", async () => {
     await Brand.insertMany(
-      pgBrands.map((b) => ({
-        id:        b.id,
-        name:      b.name,
-        countryId: pgIdToMongoCountry.get(b.countryId),
-      }))
+      pgBrands.map((b) => {
+        const country = pgCountries.find((c) => c.id === b.countryId)!;
+        return {
+          id:   b.id,
+          name: b.name,
+          country: {
+            id:          country.id,
+            name:        country.name,
+            countryCode: country.countryCode,
+          },
+        };
+      })
     );
   });
 
@@ -180,18 +187,24 @@ async function migrate() {
   await step("Mongo: Users", async () => {
     await User.insertMany(
       pgUsers.map((u) => {
-        const role = pgRoleMap.get(u.roleId)!;
+        const role    = pgRoleMap.get(u.roleId)!;
+        const country = pgCountries.find((c) => c.id === u.countryId)!;
         return {
-          id:        u.id,           // UUID string from Postgres
+          id:        u.id,
           email:     u.email,
-          password: u.password,
+          password:  u.password,
           firstName: u.firstName,
           lastName:  u.lastName,
+          createdAt: u.createdAt,
           role: {
             id:   role.id,
-            name: role.role,         // Prisma schema uses `role` field name
+            name: role.role,
           },
-          country: mongoCountriesMap.get(u.countryId),
+          country: {
+            id:          country.id,
+            name:        country.name,
+            countryCode: country.countryCode,
+          },
         };
       })
     );
@@ -210,16 +223,23 @@ async function migrate() {
       pgItems.map((item) => ({
         id:    Number(item.id),
         name:  item.name,
-        price: item.price === null ? 0 : Number(item.price),
+        price: item.price === null ? null : Number(item.price),
         category: {
-          id:   item.category.id,
-          name: item.category.name,
+          categoryId: item.category.id,
+          name:       item.category.name,
         },
-        // Many-to-many brands via ItemBrand join table → array of ObjectIds
-        brandIds: item.itemBrands.map((ib) =>
-          mongoBrandPgIdMap.get(ib.brand.id)
-        ).filter(Boolean),
-        // Embed images as sub-documents (Mongo schema) — in Neo4j these are separate nodes.
+        brands: item.itemBrands.map((ib) => {
+          const country = pgCountries.find((c) => c.id === ib.brand.countryId)!;
+          return {
+            id:   ib.brand.id,
+            name: ib.brand.name,
+            country: {
+              id:          country.id,
+              name:        country.name,
+              countryCode: country.countryCode,
+            },
+          };
+        }),
         images: item.images.map((img) => ({
           id:  Number(img.id),
           url: img.url,
@@ -237,29 +257,31 @@ async function migrate() {
 
   await step("Mongo: Closets", async () => {
     await Closet.insertMany(
-      pgClosets.map((cl) => ({
-        id:          Number(cl.id),
-        name:        cl.name,
-        description: cl.description ?? "",
-        isPublic:    cl.isPublic,
-        createdAt:   cl.createdAt,
-        userId:      mongoUserMap.get(
-          // Postgres userId is an integer FK; User.id in Mongo is a UUID string.
-          // Look up the Postgres user to get the UUID.
-          pgUsers.find((u) => u.id === cl.userId)?.id ?? ""
-        ),
-        // Resolve ClosetItem join table → array of item ObjectIds
-        itemIds: cl.closetItem.map((ci) =>
-          mongoItemMap.get(Number(ci.item.id))
-        ).filter(Boolean),
-        sharedWith: pgSharedClosets
-          .filter((sc) => Number(sc.closetId) === Number(cl.id))
-          .map((sc) => ({
-            userId: mongoUserMap.get(
-              pgUsers.find((u) => u.id === sc.userId)?.id ?? ""
-            ),
-          })),
-      }))
+      pgClosets.map((cl) => {
+        const pgUser = pgUsers.find((u) => u.id === cl.userId)!;
+        return {
+          id:          Number(cl.id),
+          name:        cl.name,
+          description: cl.description ?? null,
+          isPublic:    cl.isPublic,
+          createdAt:   cl.createdAt,
+          userId:      mongoUserMap.get(pgUser.id),
+          itemIds:     cl.closetItem.map((ci) =>
+            mongoItemMap.get(Number(ci.item.id))
+          ).filter(Boolean),
+          sharedWith: pgSharedClosets
+            .filter((sc) => Number(sc.closetId) === Number(cl.id))
+            .map((sc) => {
+              const sharedUser = pgUsers.find((u) => u.id === sc.userId)!;
+              return {
+                id:        sharedUser.id,
+                firstName: sharedUser.firstName,
+                lastName:  sharedUser.lastName,
+                email:     sharedUser.email,
+              };
+            }),
+        };
+      })
     );
   });
 
@@ -278,29 +300,63 @@ async function migrate() {
 
   await step("Mongo: Outfits", async () => {
     await Outfit.insertMany(
-      pgOutfits.map((outfit) => ({
-        id:        Number(outfit.id),
-        name:      outfit.name,
-        style:     outfit.style,
-        createdBy: mongoUserMap.get(
-          pgUsers.find((u) => u.id === outfit.createdBy)?.id ?? ""
-        ),
-        dateAdded: outfit.dateAdded,
-        // Flatten OutfitItem → ClosetItem → Item into direct item ObjectIds
-        itemIds: outfit.outfitItems.map((oi) =>
-          mongoOutfitItemMap.get(Number(oi.closetItem.item.id))
-        ).filter(Boolean),
-        // Embed reviews — in Postgres they're a separate table; here they're inline
-        reviews: (reviewsByOutfit.get(Number(outfit.id)) ?? []).map((r) => ({
-          id:          Number(r.id),
-          score:       r.score,
-          text:        r.text ?? "",
-          writtenBy:   mongoUserMap.get(
-            pgUsers.find((u) => u.id === r.writtenBy)?.id ?? ""
-          ),
-          dateWritten: r.dateWritten,
-        })),
-      }))
+      pgOutfits.map((outfit) => {
+        const pgCreator = pgUsers.find((u) => u.id === outfit.createdBy)!;
+        return {
+          id:    Number(outfit.id),
+          name:  outfit.name,
+          style: outfit.style,
+          createdBy: {
+            id:        pgCreator.id,
+            firstName: pgCreator.firstName,
+            lastName:  pgCreator.lastName,
+            email:     pgCreator.email,
+          },
+          items: outfit.outfitItems.map((oi) => {
+            const pgItem = pgItems.find((i) => Number(i.id) === Number(oi.closetItem.item.id))!;
+            return {
+              id:    Number(pgItem.id),
+              name:  pgItem.name,
+              price: pgItem.price === null ? null : Number(pgItem.price),
+              category: {
+                categoryId: pgItem.category.id,
+                name:       pgItem.category.name,
+              },
+              brands: pgItem.itemBrands.map((ib) => {
+                const country = pgCountries.find((c) => c.id === ib.brand.countryId)!;
+                return {
+                  id:   ib.brand.id,
+                  name: ib.brand.name,
+                  country: {
+                    id:          country.id,
+                    name:        country.name,
+                    countryCode: country.countryCode,
+                  },
+                };
+              }),
+              images: pgItem.images.map((img) => ({  // ← added
+                id:  Number(img.id),
+                url: img.url,
+              })),
+            };
+          }),
+          reviews: (reviewsByOutfit.get(Number(outfit.id)) ?? []).map((r) => {
+            const reviewer = pgUsers.find((u) => u.id === r.writtenBy)!;
+            return {
+              id:    Number(r.id),
+              score: r.score,
+              text:  r.text ?? "",
+              writtenBy: {
+                id:        reviewer.id,
+                firstName: reviewer.firstName,
+                lastName:  reviewer.lastName,
+                email:     reviewer.email,
+              },
+              dateWritten: r.dateWritten,
+            };
+          }),
+        };
+      })
     );
   });
 

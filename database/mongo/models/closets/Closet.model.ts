@@ -1,11 +1,22 @@
 import mongoose, { Schema, Document, Model } from "mongoose";
 import { stripInternalIdField } from "../../../../utils/repository_utils/MongooseUtil.js";
 
-
-
 export interface ISharedWith {
-  userId: mongoose.Types.ObjectId;
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
 }
+
+const SharedWithSchema = new Schema<ISharedWith>(
+  {
+    id:        { type: String, required: true },
+    firstName: { type: String, required: true, trim: true },
+    lastName:  { type: String, required: true, trim: true },
+    email:     { type: String, required: true, trim: true, lowercase: true },
+  },
+  { _id: false }
+);
 
 export interface ICloset extends Document {
   id: number;
@@ -17,15 +28,6 @@ export interface ICloset extends Document {
   itemIds: mongoose.Types.ObjectId[];
   sharedWith: ISharedWith[];
 }
-
-const SharedWithSchema = new Schema<ISharedWith>(
-  {
-    userId: { type: Schema.Types.ObjectId, ref: "User", required: true },
-  },
-  {
-    _id: false, // embedded sub-document, no own ObjectId needed
-  }
-);
 
 const ClosetSchema = new Schema<ICloset>(
   {
@@ -40,8 +42,7 @@ const ClosetSchema = new Schema<ICloset>(
   {
     timestamps: { createdAt: true, updatedAt: false },
     versionKey: false,
-     // 1. Disable the built-in Mongoose 'id' virtual to avoid conflict with your UUID 'id'
-    id: false, 
+    id: false,
     toJSON: { transform: stripInternalIdField }
   }
 );

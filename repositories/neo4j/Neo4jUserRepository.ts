@@ -182,15 +182,20 @@ export class Neo4jUserRepository implements IUserRepository {
             const result = await neogma.queryRunner.run(`
                 MATCH (u:User {id: $userId})-[r:CREATES]->(cl:Closet)
                 OPTIONAL MATCH (cl)-[:STORES]->(i:Item)
-                OPTIONAL MATCH (u2:User)-[:CO_CURATES]->(cl)
+                OPTIONAL MATCH (shared:User)-[:CO_CURATES]->(cl)
                 RETURN cl,
-                    r.createdAt                    AS createdAt,
-                    collect(DISTINCT i.id)         AS itemIds,
-                    collect(DISTINCT u2.id)        AS sharedWith
-                `, {
-                    userId,
-                }
-            );
+                    r.createdAt AS createdAt,
+                    u.id AS userId,
+                    collect(DISTINCT i.id) AS itemIds,
+                    collect(DISTINCT CASE 
+                        WHEN shared.id IS NOT NULL THEN {
+                            id: shared.id,
+                            firstName: shared.firstName,
+                            lastName: shared.lastName,
+                            email: shared.email
+                        }
+                    END) AS sharedWith
+            `, { userId });
 
             if (result.records.length === 0) return [];
 
@@ -210,31 +215,60 @@ export class Neo4jUserRepository implements IUserRepository {
                 MATCH (u:User {id: $userId})-[rel:CREATES]->(o:Outfit)
                 OPTIONAL MATCH (o)-[:CONTAINS]->(i:Item)
                 OPTIONAL MATCH (i)-[:MADE_BY]->(b:Brand)
+                OPTIONAL MATCH (b)-[:IS_FROM]->(country:Country)
                 OPTIONAL MATCH (i)-[:BELONGS_TO]->(cat:Category)
                 OPTIONAL MATCH (i)-[:HAS]->(img:Image)
-                OPTIONAL MATCH (reviewer:User)-[w:WRITES]->(rv:Review)-[:ABOUT]->(o)
-                WITH o, u, rel, i, b, cat, img, rv, w, reviewer
-                RETURN o,
-                    u.id AS createdBy,
+                OPTIONAL MATCH (rv:Review)-[:ABOUT]->(o)
+                OPTIONAL MATCH (reviewer:User)-[w:WRITES]->(rv)
+                WITH o, 
+                    u,
                     rel.dateAdded AS dateAdded,
+                    i, b, cat, img, country,
+                    rv, reviewer, w
+                RETURN 
+                    o,
+                    {
+                        id:        u.id,
+                        firstName: u.firstName,
+                        lastName:  u.lastName,
+                        email:     u.email
+                    } AS createdBy,
+                    dateAdded,
                     collect(DISTINCT {
                         id:       i.id,
                         name:     i.name,
                         price:    i.price,
-                        category: cat.name
+                        category: { categoryId: cat.id, name: cat.name }
                     }) AS rawItems,
-                    collect(DISTINCT { itemId: i.id, brandId: b.id, brandName: b.name }) AS rawBrands,
-                    collect(DISTINCT { itemId: i.id, imageId: img.id, imageUrl: img.url }) AS rawImages,
                     collect(DISTINCT {
-                        id:          rv.id,
-                        score:       rv.score,
-                        text:        rv.text,
-                        writtenBy:   reviewer.id,
-                        dateWritten: w.dateWritten,
-                        outfitId:    o.id
-                    }) AS rawReviews
-                `, { userId }
-            );
+                        itemId:    i.id,
+                        brandId:   b.id,
+                        brandName: b.name,
+                        countryId: country.id,
+                        countryName: country.name,
+                        countryCode: country.countryCode
+                    }) AS rawBrands,
+                    collect(DISTINCT {
+                        itemId:   i.id,
+                        imageId:  img.id,
+                        imageUrl: img.url
+                    }) AS rawImages,
+                    collect(DISTINCT CASE 
+                        WHEN rv.id IS NOT NULL THEN {
+                            id:          rv.id,
+                            score:       rv.score,
+                            text:        rv.text,
+                            dateWritten: w.dateWritten,
+                            outfitId:    o.id,
+                            writtenBy: {
+                                id:        reviewer.id,
+                                firstName: reviewer.firstName,
+                                lastName:  reviewer.lastName,
+                                email:     reviewer.email
+                            }
+                        }
+                    END) AS rawReviews
+            `, { userId });
 
             if (result.records.length === 0) return [];
 
@@ -253,11 +287,16 @@ export class Neo4jUserRepository implements IUserRepository {
             if (!userId) throw new Error("Missing required user id.");
 
             const result = await neogma.queryRunner.run(`
-            MATCH (u:User {id: $userId})-[w:WRITES]->(rv:Review)-[:ABOUT]->(o:Outfit)
-            RETURN rv,
-                u.id          AS writtenBy,
-                w.dateWritten AS dateWritten,
-                o.id          AS outfitId
+                MATCH (u:User {id: $userId})-[w:WRITES]->(rv:Review)-[:ABOUT]->(o:Outfit)
+                RETURN rv,
+                    {
+                        id: u.id,
+                        firstName: u.firstName,
+                        lastName: u.lastName,
+                        email: u.email
+                    } AS writtenBy,
+                    w.dateWritten AS dateWritten,
+                    o.id AS outfitId
             `, { userId });
 
             if (result.records.length === 0) return [];
@@ -278,13 +317,20 @@ export class Neo4jUserRepository implements IUserRepository {
             const result = await neogma.queryRunner.run(`
             MATCH (u:User {id: $userId})-[:CO_CURATES]->(cl:Closet)
             MATCH (owner:User)-[r:CREATES]->(cl)
-            OPTIONAL MATCH (cl)-[:STORES]->(i:Item)
             OPTIONAL MATCH (sharedUser:User)-[:CO_CURATES]->(cl)
+            OPTIONAL MATCH (cl)-[:STORES]->(i:Item)
             RETURN cl,
                     owner.id                         AS userId,
                     r.createdAt                      AS createdAt,
                     collect(DISTINCT i.id)           AS itemIds,
-                    collect(DISTINCT sharedUser.id)  AS sharedWith
+                    [item IN collect(DISTINCT CASE
+                        WHEN sharedUser.id IS NOT NULL THEN {
+                            id: sharedUser.id,
+                            firstName: sharedUser.firstName,
+                            lastName: sharedUser.lastName,
+                            email: sharedUser.email
+                        }
+                    END) WHERE item IS NOT NULL] AS sharedWith
             `, { userId });
 
             if (result.records.length === 0) return [];

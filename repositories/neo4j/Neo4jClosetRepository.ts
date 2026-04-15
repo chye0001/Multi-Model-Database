@@ -135,10 +135,11 @@ export class Neo4jClosetRepository implements IClosetRepository {
                 `MATCH (cl:Closet { id: $closetId })-[:STORES]->(i:Item)
                  OPTIONAL MATCH (i)-[:BELONGS_TO]->(cat:Category)
                  OPTIONAL MATCH (i)-[:MADE_BY]->(b:Brand)
+                 OPTIONAL MATCH (b)-[:IS_FROM]->(country:Country)
                  OPTIONAL MATCH (i)-[:HAS]->(img:Image)
                  RETURN i,
                         cat.name AS category,
-                        collect(DISTINCT { id: b.id, name: b.name }) AS brands,
+                        collect(DISTINCT { id: b.id, name: b.name, countryId: country.id, countryName: country.name, countryCode: country.countryCode }) AS brands,
                         collect(DISTINCT { id: img.id, url: img.url }) AS images`,
                 { closetId: numericId }
             );
@@ -147,9 +148,17 @@ export class Neo4jClosetRepository implements IClosetRepository {
                 const itemNode = record.get("i");
                 const props = itemNode.properties;
 
-                const brands = (record.get("brands") as Array<{ id: number | null; name: string | null }>)
+                const brands = (record.get("brands") as Array<{ id: number | null; name: string | null; countryId?: number | null; countryName?: string | null; countryCode?: string | null }>)
                     .filter((b) => b.id !== null && b.name !== null)
-                    .map((b) => ({ id: Number(b.id), name: String(b.name) }));
+                    .map((b) => ({ 
+                        id: Number(b.id), 
+                        name: String(b.name),
+                        country: {
+                            id: b.countryId ?? 0,
+                            name: b.countryName ?? "",
+                            countryCode: b.countryCode ?? ""
+                        }
+                    }));
 
                 const images = (record.get("images") as Array<{ id: number | null; url: string | null }>)
                     .filter((img) => img.id !== null && img.url !== null)
@@ -159,7 +168,7 @@ export class Neo4jClosetRepository implements IClosetRepository {
                     id: Number(props.id),
                     name: String(props.name),
                     price: props.price ?? null,
-                    category: String(record.get("category") ?? "Unknown"),
+                    category: { categoryId: 0, name: String(record.get("category") ?? "Unknown") },
                     brands,
                     images,
                     fromDatabase: "neo4j",
