@@ -63,7 +63,11 @@ export function formatUserCloset(closet: any, database: string): Closet {
     if (databaseName === "neo4j") {
         closetProperties = closet.get("cl").properties;
         itemIds          = closet.get("itemIds").filter((id: any) => id !== null);
-        sharedWith       = closet.get("sharedWith").filter((id: any) => id !== null);
+        sharedWith = closet.get("sharedWith").filter((user: any) => 
+            user && 
+            (user.id !== null && user.id !== undefined) &&
+            (user.firstName !== null || user.lastName !== null || user.email !== null)
+        );
         createdAt        = new Date(closet.get("createdAt"));
     }
 
@@ -76,7 +80,7 @@ export function formatUserCloset(closet: any, database: string): Closet {
 
         userId: databaseName === "postgresql" ? closet.userId :
                 databaseName === "mongodb"    ? closet.userId.id :
-                closetProperties.userId,
+                closet.get("userId"),
 
         itemIds: databaseName === "postgresql"
             ? closet.closetItem.map((ci: any) => Number(ci.itemId))
@@ -115,7 +119,75 @@ export function formatUserOutfit(outfit: any, database: string): Outfit {
     }
 
     if (databaseName === "neo4j") {
-        // neo4j block unchanged
+        const o          = outfit.get("o").properties;
+        const createdBy  = outfit.get("createdBy");           // full EmbeddedUser
+        const dateAdded  = outfit.get("dateAdded");
+        const rawItems   = outfit.get("rawItems")   || [];
+        const rawBrands  = outfit.get("rawBrands")  || [];
+        const rawImages  = outfit.get("rawImages")  || [];
+        let rawReviews = outfit.get("rawReviews") || [];
+        rawReviews = rawReviews.filter((r: any) => r && r.id != null);
+        
+        // Build full ClothingItem[] by grouping
+        const itemMap = new Map<number, any>();
+        rawItems.forEach((itemData: any) => {
+            if (!itemData?.id) return;
+            
+            // Safely handle category - may be null if no category relationship
+            const category = itemData.category && itemData.category.categoryId != null
+                ? itemData.category
+                : { categoryId: 0, name: "Uncategorized" };
+            
+            itemMap.set(itemData.id, {
+                id: Number(itemData.id),
+                name: itemData.name,
+                price: itemData.price ?? null,
+                category,
+                brands: [],
+                images: [],
+            });
+        });
+
+        rawBrands.forEach((b: any) => {
+            if (!b?.itemId) return;
+            const item = itemMap.get(b.itemId);
+            if (item && b.brandId && b.brandName) {
+                item.brands.push(formatBrand({ 
+                    id: b.brandId, 
+                    name: b.brandName, 
+                    country: { 
+                        id: b.countryId ?? 0, 
+                        name: b.countryName ?? "", 
+                        countryCode: b.countryCode ?? "" 
+                    } 
+                }));
+            }
+        });
+
+        rawImages.forEach((img: any) => {
+            if (!img?.itemId) return;
+            const item = itemMap.get(img.itemId);
+            if (item && img.imageId && img.imageUrl) {
+                item.images.push(formatItemImage({ id: img.imageId, url: img.imageUrl }));
+            }
+        });
+
+        const items = Array.from(itemMap.values());
+
+        const reviews = rawReviews.map((r: any) =>
+            formatUserReview(r, databaseName)
+        );
+
+        return {
+            id:        Number(o.id),
+            name:      o.name ?? undefined,
+            style:     o.style ?? undefined,
+            dateAdded: dateAdded ? new Date(dateAdded) : new Date(),
+            createdBy,
+            items,
+            reviews,
+            fromDatabase: databaseName,
+        };
     }
 
     return {
@@ -160,20 +232,46 @@ export function formatUserReview(review: any, database: string): Review {
     throwIfNotSupportedDatabase(databaseName);
 
     if (databaseName === "neo4j") {
-        const rv          = review.get("rv").properties;
-        const outfitId    = review.get("outfitId");
-        const dateWritten = review.get("dateWritten");
-        const writtenBy   = review.get("writtenBy");
+        // Handle both plain objects (from outfit/closet queries) and record objects
+        const isPlainObject = !review.get;
+        
+        let id: number | null | undefined;
+        let score: number;
+        let text: string;
+        let outfitId: number;
+        let dateWritten: Date;
+        let writtenBy: any;
+        
+        if (isPlainObject) {
+            // Plain object from Cypher CASE collection
+            id = review.id ?? null;
+            score = review.score ?? 0;
+            text = review.text ?? "";
+            outfitId = review.outfitId;
+            dateWritten = review.dateWritten ? new Date(review.dateWritten) : new Date();
+            writtenBy = review.writtenBy ?? {};
+        } else {
+            // Record object from direct Neo4j query
+            const rv = review.get("rv")?.properties || {};
+            id = rv.id ?? null;
+            score = rv.score ?? 0;
+            text = rv.text ?? "";
+            outfitId = Number(review.get("outfitId"));
+            dateWritten = review.get("dateWritten") ? new Date(review.get("dateWritten")) : new Date();
+            writtenBy = review.get("writtenBy") ?? {};
+        }
 
-        return {
-            id:           rv.id,
-            outfitId,
-            score:        rv.score,
-            text:         rv.text ?? "",
+        const result: Review = {
+            id,
+            outfitId, 
+            score,
+            text,
             writtenBy,
-            dateWritten:  dateWritten ? new Date(dateWritten) : new Date(),
+            dateWritten,
             fromDatabase: databaseName
         };
+        
+        return result;
     }
 
     // postgresql now includes user relation for writtenBy snapshot
