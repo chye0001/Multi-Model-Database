@@ -152,12 +152,6 @@ async function migrate() {
     );
   });
 
-  // Brands — need the Mongo Country _id to store as a reference.
-  // We build a lookup map: Postgres country id → Mongo country _id.
-  const mongoCountries = await Country.find();
-  const pgIdToMongoCountry = new Map(
-    mongoCountries.map((c) => [c.id as number, c._id])
-  );
 
   await step("Mongo: Brands", async () => {
     await Brand.insertMany(
@@ -179,10 +173,6 @@ async function migrate() {
   // Users — embed role as sub-document (matches the Mongo schema).
   // Build role lookup: Postgres role id → role object
   const pgRoleMap = new Map(pgRoles.map((r) => [r.id, r]));
-
-  const mongoCountriesMap = new Map(
-    mongoCountries.map((c) => [c.id as number, c._id])
-  );
 
   await step("Mongo: Users", async () => {
     await User.insertMany(
@@ -210,13 +200,6 @@ async function migrate() {
     );
   });
 
-  // Items — embed category, resolve brand ObjectIds from the join table,
-  // and embed images as sub-documents.
-  const mongoCategories    = await Category.find();
-  const mongoCategoryMap   = new Map(mongoCategories.map((c) => [c.id as number, c._id]));
-
-  const mongoBrands        = await Brand.find();
-  const mongoBrandPgIdMap  = new Map(mongoBrands.map((b) => [b.id as number, b._id]));
 
   await step("Mongo: Items", async () => {
     await Item.insertMany(
@@ -285,10 +268,7 @@ async function migrate() {
     );
   });
 
-  // Outfits — embed reviews directly (matches Mongo schema).
-  // Resolve items via OutfitItem → ClosetItem → Item chain.
-  const mongoOutfitItems = await Item.find();
-  const mongoOutfitItemMap = new Map(mongoOutfitItems.map((i) => [i.id as number, i._id]));
+
 
   // Build review lookup: outfitId → reviews[]
   const reviewsByOutfit = new Map<number, typeof pgReviews>();
