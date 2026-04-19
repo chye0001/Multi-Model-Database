@@ -38,8 +38,8 @@ services:
       postgres:
         condition: service_healthy
     environment:
-      POSTGRES_USER: ${POSTGRES_USER_DEV}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD_DEV}
+      POSTGRES_BACKUP_USER: ${POSTGRES_BACKUP_USER}
+      POSTGRES_BACKUP_PASSWORD: ${POSTGRES_BACKUP_PASSWORD}
     volumes:
       - ./database/postgres/backups/base:/var/lib/postgresql/base_backup
       - ./database/postgres/backups/backup.sh:/usr/local/bin/backup.sh:ro

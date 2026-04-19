@@ -11,9 +11,9 @@ done
 
 echo "Starting base backup at ${TIMESTAMP}..."
 
-PGPASSWORD="$POSTGRES_PASSWORD" pg_basebackup \
+PGPASSWORD="$POSTGRES_BACKUP_PASSWORD" pg_basebackup \
   -h postgres \
-  -U "$POSTGRES_USER" \
+  -U "$POSTGRES_BACKUP_USER" \
   -D "$BACKUP_DIR" \
   -Ft \
   -Xstream \
