@@ -3,3 +3,4 @@
 **generated
 /database/postgres/backups/base/*
 /database/postgres/backups/wal_archives/*
+/database/mongo/backups/base/*

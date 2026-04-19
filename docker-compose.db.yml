@@ -64,10 +64,54 @@ services:
       - "27018:27017"
     environment:
       MONGO_INITDB_DATABASE: ${MONGO_DB_DEV}
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USER}     # root user credentials
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD}
+      MONGO_BACKUP_USER: ${MONGO_BACKUP_USER}            # backup user credentials
+      MONGO_BACKUP_PASSWORD: ${MONGO_BACKUP_PASSWORD}
+      MONGO_APP_USER: ${MONGO_APP_USER}                  # app user credentials
+      MONGO_APP_PASSWORD: ${MONGO_APP_PASSWORD} 
     volumes:
       - mongo_data:/data/db
+      - ./database/mongo/init:/docker-entrypoint-initdb.d:ro
+      - ./database/mongo/backups/base:/mongo_backup:ro
+      - ./database/mongo/backups/restore.sh:/usr/local/bin/restore.sh:ro
+
     networks:
       - database_network
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet",
+             "-u", "${MONGO_ROOT_USER}",
+             "-p", "${MONGO_ROOT_PASSWORD}",
+             "--authenticationDatabase", "admin",
+             "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  mongo-backup:
+    image: mongo:7
+    container_name: mongo_backup
+    depends_on:
+      mongo:
+        condition: service_healthy
+    environment:
+      MONGO_BACKUP_PASSWORD: ${MONGO_BACKUP_PASSWORD}       # ← only secret it needs
+    volumes:
+      - mongo_data:/data/db:ro
+      - ./database/mongo/backups/base:/mongo_backup
+      - ./database/mongo/backups/backup.sh:/usr/local/bin/backup.sh:ro
+    networks:
+      - database_network
+    entrypoint: ["/bin/bash", "-c"]
+    command:
+      - |
+        sleep 10
+        while true; do
+          bash /usr/local/bin/backup.sh
+          sleep 86400
+        done
+    restart: unless-stopped
 
   neo4j:
     image: neo4j:5
@@ -126,6 +170,7 @@ volumes:
   database_volume:
     name: postgres_data
   mongo_data:
+    name: mongo_data
   neo4j_data:
 
 networks:

@@ -146,6 +146,37 @@ This will basically drop the entire Mongo database. This is expected behavior, s
 show any collections are databases, if there are no Collections with any Documents inside.
 In other words if there are no data stored in the database, Mongo will not show the database.
 
+## Connection via MongoDB Compass
+You can connect to MongoDB Compass by modifying the connection string following the patteren based on the user, descirbed in the [.env.example](../.env.example)
+
+
+
+# Mongo - Backup & Restore
+
+## Backup
+
+Prerequisite:
+Ensure your private .env file contains the correct mongo user credentials.
+See [.env.example](../.env.example).
+
+On the very first start up of the mongo containers, when volume is just created, it will create two users:
+- backup_agent (this user only has priviledges to create backups and restore them)
+- app_user (this user can only read, create, update and delete)
+
+After seeding of the mongo database, you can take a physical backup calling:
+```bash
+npm run mongo:backup
+```
+This will store the backup at this [location](./mongo/backups/base/).
+
+## Restore 
+To restore the database with the backup simply call:
+```bash
+npm run mongo:restore
+```
+This will stop the container, wipe the current volume, apply the physical backup and then restart the container automatically.
+
+
 
 
 
