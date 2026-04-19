@@ -2,6 +2,12 @@ services:
   postgres:
     container_name: postgres_database
     image: ${DOCKER_HUB_USERNAME}/database-postgres:latest
+    command: >
+      postgres
+      -c config_file=/etc/postgresql/postgresql.conf
+      -c hba_file=/etc/postgresql/pg_hba.conf
+      -c shared_preload_libraries=pg_cron
+      -c cron.database_name=postgres
     ports:
       - ${POSTGRES_PORT_DEV}:5432
     environment:
@@ -13,11 +19,43 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
-      start_period: 10s
+      start_period: 30s
     volumes:
       - database_volume:/var/lib/postgresql/data
+      - ./database/postgres/postgresql.conf:/etc/postgresql/postgresql.conf:ro
+      - ./database/postgres/pg_hba.conf:/etc/postgresql/pg_hba.conf:ro
+      - ./database/postgres/backups/wal_archives:/var/lib/postgresql/wal_archive   # WAL segments land here
+      - ./database/postgres/backups/base:/var/lib/postgresql/base_backup          # base backups land here
+
     networks:
       - database_network
+
+  # the pg-backup service is known as a "sidecar" and is used as to do periodically backups
+  pg-backup:
+    image: postgres:17
+    container_name: postgres_backup
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER_DEV}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD_DEV}
+    volumes:
+      - ./database/postgres/backups/base:/var/lib/postgresql/base_backup
+      - ./database/postgres/backups/backup.sh:/usr/local/bin/backup.sh:ro
+    networks:
+      - database_network
+    entrypoint: ["/bin/bash", "-c"]
+    command:
+      - |
+        echo "Waiting for first backup in 5 seconds..."
+        sleep 5
+        while true; do
+          bash /usr/local/bin/backup.sh
+          echo "Next backup in 24 hours..."
+          sleep 86400
+        done
+    restart: unless-stopped
 
   mongo:
     image: mongo:7
