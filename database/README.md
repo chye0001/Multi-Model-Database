@@ -81,6 +81,45 @@ The credentials can be found in the [.env](../.env) file located at the root of 
 
 
 
+# Postgres - Backup & Restore
+
+## Backup
+Initially when you start up the containers using docker compose, it will fail, since there are no user called "backup_user".
+This user needs to be created. 
+
+To create the user start up the containers normally as state in the begining of this README.md.
+The posgres_backup service will fail, but the main postgres_database should start up with no problems.
+
+Then do:
+```bash
+npm run prisma:migrate
+npm run prisma:seed
+```
+The creation of the backup user has been added to migrations - this is not ideal but just a school project, meh.
+
+Then add the following credentials to your private .env file:
+POSTGRES_BACKUP_USER=backup_user
+POSTGRES_BACKUP_PASSWORD=strongpassword
+
+Then restart the containers, and the the periodical backups should run every 24 hours, altough only locally.. for now...
+
+
+## Restore
+
+If you followed the steps defined under "Backup" you should now have a backup file you can apply - [backups](./postgres/backups/base/)
+Then call the custome restore script:
+```bash
+npm run postgres:restore
+```
+
+Afterwards do the cleanup step by calling:
+```bash
+npm run postgres:restore:cleanup
+```
+
+
+
+
 
 
 
