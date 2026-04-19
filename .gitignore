@@ -1,3 +1,5 @@
 /node_modules
 .env
 **generated
+/database/postgres/backups/base/*
+/database/postgres/backups/wal_archives/*
