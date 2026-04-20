@@ -9,23 +9,26 @@ datasource db {
 
 model User {
   @@map("users")
-  id        String      @id @default(uuid(7)) @db.Uuid
-  email     String   @unique
-  password  String
-  firstName String
-  lastName  String
-  createdAt DateTime @default(now())
+  id         String   @id @default(uuid(7)) @db.Uuid
+  email      String   @unique
+  password   String
+  firstName  String
+  lastName   String
+  createdAt  DateTime @default(now())
   
-  roleId    Int
-  role      Role     @relation(fields: [roleId], references: [id])
+  roleId     Int
+  role       Role     @relation(fields: [roleId], references: [id])
   
-  countryId Int
-  country   Country  @relation(fields: [countryId], references: [id])
+  countryId  Int
+  country    Country  @relation(fields: [countryId], references: [id])
 
-  review Review[]
-  outfit Outfit[]
-  closet Closet[]
+  review       Review[]
+  outfit       Outfit[]
+  closet       Closet[]
   sharedCloset SharedCloset[]
+
+  @@index([roleId])
+  @@index([countryId])
 }
 
 model Role {
@@ -38,26 +41,28 @@ model Role {
 
 model Country {
   @@map("countries")
-  id Int @id @default(autoincrement())
-  name String
+  id          Int      @id @default(autoincrement())
+  name        String
   countryCode String
 
-  users User[]
+  users  User[]
   brands Brand[]
 }
 
 model Outfit {
   @@map("outfits")
-  id BigInt @id @default(autoincrement())
-  name String
-  style String
-  dateAdded DateTime @default(now())
+  id         BigInt   @id @default(autoincrement())
+  name       String
+  style      String
+  dateAdded  DateTime @default(now())
 
   createdBy String @db.Uuid
-  user User @relation(fields: [createdBy], references: [id], onDelete: Cascade)
+  user      User   @relation(fields: [createdBy], references: [id], onDelete: Cascade)
 
   outfitItems OutfitItem[]
-  reviews Review[]
+  reviews     Review[]
+
+  @@index([createdBy])
 }
 
 model OutfitItem {
@@ -65,37 +70,43 @@ model OutfitItem {
   id BigInt @id @default(autoincrement())
 
   outfitId BigInt
-  outfit Outfit @relation(fields: [outfitId], references: [id], onDelete: Cascade)
+  outfit   Outfit @relation(fields: [outfitId], references: [id], onDelete: Cascade)
 
   closetItemId BigInt
-  closetItem ClosetItem @relation(fields: [closetItemId], references: [id], onDelete: Cascade)
+  closetItem   ClosetItem @relation(fields: [closetItemId], references: [id], onDelete: Cascade)
   
   @@unique([outfitId, closetItemId]) // prevents duplicates
+  @@index([closetItemId])
 }
 
 model Review {
   @@map("reviews")
-  id BigInt @id @default(autoincrement())
-  score Int
-  text String
+  id          BigInt   @id @default(autoincrement())
+  score       Int
+  text        String
 
-  writtenBy String @db.Uuid
+  writtenBy   String   @db.Uuid
   dateWritten DateTime @default(now()) // todo add this to the report in the model
-  user User @relation(fields: [writtenBy], references: [id], onDelete: Cascade)
+  user        User     @relation(fields: [writtenBy], references: [id], onDelete: Cascade)
 
   outfitId BigInt
-  outfit Outfit @relation(fields: [outfitId], references: [id], onDelete: Cascade)
+  outfit   Outfit @relation(fields: [outfitId], references: [id], onDelete: Cascade)
+
+  @@index([writtenBy])
+  @@index([outfitId])
 }
 
 model Brand {
   @@map("brands")
-  id Int @id @default(autoincrement())
+  id   Int    @id @default(autoincrement())
   name String
 
   countryId Int
-  country Country @relation(fields: [countryId], references: [id])
+  country   Country @relation(fields: [countryId], references: [id])
 
   itemBrand ItemBrand[]
+
+  @@index([countryId])
 }
 
 // Brands can collaborate, meaning multiple brands can create a piece of clothing/accesories/shoes etc.
@@ -104,30 +115,34 @@ model ItemBrand {
   @@id([itemId, brandId]) // Composite key prevents duplicates
 
   itemId BigInt
-  item Item @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  item   Item @relation(fields: [itemId], references: [id], onDelete: Cascade)
 
   brandId Int 
-  brand Brand @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  brand   Brand @relation(fields: [brandId], references: [id], onDelete: Cascade)
+
+  @@index([brandId])
 }
 
 // Items are implicitly clothing items, such as shoes, tops, bottoms etc.
 model Item {
   @@map("items")
-  id BigInt @id @default(autoincrement())
-  name String
+  id    BigInt   @id @default(autoincrement())
+  name  String
   price Decimal?
 
   categoryId Int
-  category Category @relation(fields: [categoryId], references: [id])
+  category   Category @relation(fields: [categoryId], references: [id])
   
   itemBrands ItemBrand[]
-  images Image[]
+  images     Image[]
   closetItem ClosetItem[]
+
+  @@index([categoryId])
 }
 
 model Category {
   @@map("categories")
-  id Int @id @default(autoincrement())
+  id   Int    @id @default(autoincrement())
   name String
 
   item Item[]
@@ -135,26 +150,30 @@ model Category {
 
 model Image {
   @@map("images")
-  id BigInt @id @default(autoincrement())
+  id  BigInt @id @default(autoincrement())
   url String
 
   itemId BigInt
-  item Item @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  item   Item @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@index([itemId])
 }
 
 model Closet {
   @@map("closets")
-  id BigInt @id @default(autoincrement())
-  name String
+  id          BigInt   @id @default(autoincrement())
+  name        String
   description String?
-  isPublic Boolean @default(false)
-  createdAt DateTime @default(now())
+  isPublic    Boolean  @default(false)
+  createdAt   DateTime @default(now())
 
   userId String @db.Uuid
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  closetItem ClosetItem[]
+  closetItem   ClosetItem[]
   sharedCloset SharedCloset[]
+
+  @@index([userId])
 }
 
 model SharedCloset {
@@ -162,25 +181,28 @@ model SharedCloset {
   id BigInt @id @default(autoincrement())
 
   closetId BigInt
-  closet Closet @relation(fields: [closetId], references: [id], onDelete: Cascade)
+  closet   Closet @relation(fields: [closetId], references: [id], onDelete: Cascade)
 
   userId String @db.Uuid
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([closetId, userId]) // prevents duplicates
+  @@index([userId])
 }
 
 model ClosetItem {
   @@map("closet_items")
   id BigInt @id @default(autoincrement())
 
-  itemId BigInt
-  item Item @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  itemId   BigInt
+  item     Item   @relation(fields: [itemId], references: [id], onDelete: Cascade)
 
   closetId BigInt
-  closet Closet @relation(fields: [closetId], references: [id], onDelete: Cascade)
+  closet   Closet @relation(fields: [closetId], references: [id], onDelete: Cascade)
   
   @@unique([itemId, closetId])  
 
   outfitItem OutfitItem[]
+
+  @@index([closetId])
 }
