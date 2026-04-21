@@ -1,6 +1,5 @@
-import { getOutfitModel } from "../../database/neo4j/models/index.js";
 import { neogma } from "../../database/neo4j/neogma-client.js";
-import { formatUserOutfit, formatClothingItem } from "../../utils/repository_utils/ObjectFormatters.js";
+import { formatUserOutfit } from "../../utils/repository_utils/ObjectFormatters.js";
 
 import type { IOutfitRepository } from "../interfaces/IOutfitRepository.js";
 import type { Outfit } from "../../dtos/outfits/Outfit.dto.js";
@@ -9,41 +8,67 @@ import type { ClothingItem } from "../../dtos/items/Item.dto.js";
 export class Neo4jOutfitRepository implements IOutfitRepository {
     async getAllOutfits(style?: string): Promise<Outfit[]> {
         try {
-            const query = style
-                ? `MATCH (o:Outfit { style: $style })
-           OPTIONAL MATCH (u:User)-[:CREATES]->(o)
-           OPTIONAL MATCH (o)-[:CONTAINS]->(i:Item)
-           OPTIONAL MATCH (i)-[:MADE_BY]->(b:Brand)
-           OPTIONAL MATCH (b)-[:IS_FROM]->(country:Country)
-           OPTIONAL MATCH (i)-[:BELONGS_TO]->(cat:Category)
-           OPTIONAL MATCH (i)-[:HAS]->(img:Image)
-           OPTIONAL MATCH (reviewer:User)-[w:WRITES]->(rv:Review)-[:ABOUT]->(o)
-           WITH o, u, i, b, country, cat, img, rv, w, reviewer
-           RETURN o,
-               u.id AS createdBy,
-               o.dateAdded AS dateAdded,
-               collect(DISTINCT { id: i.id, name: i.name, price: i.price, category: cat.name }) AS rawItems,
-               collect(DISTINCT { itemId: i.id, brandId: b.id, brandName: b.name, countryId: country.id, countryName: country.name, countryCode: country.countryCode }) AS rawBrands,
-               collect(DISTINCT { itemId: i.id, imageId: img.id, imageUrl: img.url }) AS rawImages,
-               collect(DISTINCT { id: rv.id, score: rv.score, text: rv.text, writtenBy: reviewer.id, dateWritten: w.dateWritten, outfitId: o.id }) AS rawReviews`
-                : `MATCH (o:Outfit)
-           OPTIONAL MATCH (u:User)-[:CREATES]->(o)
-           OPTIONAL MATCH (o)-[:CONTAINS]->(i:Item)
-           OPTIONAL MATCH (i)-[:MADE_BY]->(b:Brand)
-           OPTIONAL MATCH (b)-[:IS_FROM]->(country:Country)
-           OPTIONAL MATCH (i)-[:BELONGS_TO]->(cat:Category)
-           OPTIONAL MATCH (i)-[:HAS]->(img:Image)
-           OPTIONAL MATCH (reviewer:User)-[w:WRITES]->(rv:Review)-[:ABOUT]->(o)
-           WITH o, u, i, b, country, cat, img, rv, w, reviewer
-           RETURN o,
-               u.id AS createdBy,
-               o.dateAdded AS dateAdded,
-               collect(DISTINCT { id: i.id, name: i.name, price: i.price, category: cat.name }) AS rawItems,
-               collect(DISTINCT { itemId: i.id, brandId: b.id, brandName: b.name, countryId: country.id, countryName: country.name, countryCode: country.countryCode }) AS rawBrands,
-               collect(DISTINCT { itemId: i.id, imageId: img.id, imageUrl: img.url }) AS rawImages,
-               collect(DISTINCT { id: rv.id, score: rv.score, text: rv.text, writtenBy: reviewer.id, dateWritten: w.dateWritten, outfitId: o.id }) AS rawReviews`;
+            const result = await neogma.queryRunner.run(
+                `MATCH (u:User)-[rel:CREATES]->(o:Outfit)
+                 WHERE $style IS NULL OR o.style = $style
+                 OPTIONAL MATCH (o)-[:CONTAINS]->(i:Item)
+                 OPTIONAL MATCH (i)-[:MADE_BY]->(b:Brand)
+                 OPTIONAL MATCH (b)-[:IS_FROM]->(country:Country)
+                 OPTIONAL MATCH (i)-[:BELONGS_TO]->(cat:Category)
+                 OPTIONAL MATCH (i)-[:HAS]->(img:Image)
+                 OPTIONAL MATCH (reviewer:User)-[w:WRITES]->(rv:Review)-[:ABOUT]->(o)
+                 WITH o, u, rel, i, b, country, cat, img, rv, reviewer, w
+                 RETURN o,
+                        {
+                            id: u.id,
+                            firstName: u.firstName,
+                            lastName: u.lastName,
+                            email: u.email
+                        } AS createdBy,
+                        coalesce(rel.dateAdded, o.dateAdded) AS dateAdded,
+                        collect(DISTINCT CASE
+                            WHEN i.id IS NOT NULL THEN {
+                                id: i.id,
+                                name: i.name,
+                                price: i.price,
+                                category: { categoryId: cat.id, name: cat.name }
+                            }
+                        END) AS rawItems,
+                        collect(DISTINCT CASE
+                            WHEN b.id IS NOT NULL AND i.id IS NOT NULL THEN {
+                                itemId: i.id,
+                                brandId: b.id,
+                                brandName: b.name,
+                                countryId: country.id,
+                                countryName: country.name,
+                                countryCode: country.countryCode
+                            }
+                        END) AS rawBrands,
+                        collect(DISTINCT CASE
+                            WHEN img.id IS NOT NULL AND i.id IS NOT NULL THEN {
+                                itemId: i.id,
+                                imageId: img.id,
+                                imageUrl: img.url
+                            }
+                        END) AS rawImages,
+                        collect(DISTINCT CASE
+                            WHEN rv.id IS NOT NULL THEN {
+                                id: rv.id,
+                                score: rv.score,
+                                text: rv.text,
+                                dateWritten: w.dateWritten,
+                                outfitId: o.id,
+                                writtenBy: {
+                                    id: reviewer.id,
+                                    firstName: reviewer.firstName,
+                                    lastName: reviewer.lastName,
+                                    email: reviewer.email
+                                }
+                            }
+                        END) AS rawReviews`,
+                { style: style ?? null }
+            );
 
-            const result = await neogma.queryRunner.run(query, style ? { style } : {});
             return result.records.map((record) => formatUserOutfit(record, "neo4j"));
         } catch (error) {
             console.error("Error fetching outfits from Neo4j:", error);
@@ -53,24 +78,64 @@ export class Neo4jOutfitRepository implements IOutfitRepository {
 
     async getOutfitById(id: string): Promise<Outfit[]> {
         try {
-            const numericId = Number(id);
+            const numericId = this.parseNumericId(id, "outfit id");
             const result = await neogma.queryRunner.run(
-                `MATCH (o:Outfit { id: $id })
-         OPTIONAL MATCH (u:User)-[:CREATES]->(o)
-         OPTIONAL MATCH (o)-[:CONTAINS]->(i:Item)
-         OPTIONAL MATCH (i)-[:MADE_BY]->(b:Brand)
-         OPTIONAL MATCH (b)-[:IS_FROM]->(country:Country)
-         OPTIONAL MATCH (i)-[:BELONGS_TO]->(cat:Category)
-         OPTIONAL MATCH (i)-[:HAS]->(img:Image)
-         OPTIONAL MATCH (reviewer:User)-[w:WRITES]->(rv:Review)-[:ABOUT]->(o)
-         WITH o, u, i, b, country, cat, img, rv, w, reviewer
-         RETURN o,
-             u.id AS createdBy,
-             o.dateAdded AS dateAdded,
-             collect(DISTINCT { id: i.id, name: i.name, price: i.price, category: cat.name }) AS rawItems,
-             collect(DISTINCT { itemId: i.id, brandId: b.id, brandName: b.name, countryId: country.id, countryName: country.name, countryCode: country.countryCode }) AS rawBrands,
-             collect(DISTINCT { itemId: i.id, imageId: img.id, imageUrl: img.url }) AS rawImages,
-             collect(DISTINCT { id: rv.id, score: rv.score, text: rv.text, writtenBy: reviewer.id, dateWritten: w.dateWritten, outfitId: o.id }) AS rawReviews`,
+                `MATCH (u:User)-[rel:CREATES]->(o:Outfit { id: $id })
+                 OPTIONAL MATCH (o)-[:CONTAINS]->(i:Item)
+                 OPTIONAL MATCH (i)-[:MADE_BY]->(b:Brand)
+                 OPTIONAL MATCH (b)-[:IS_FROM]->(country:Country)
+                 OPTIONAL MATCH (i)-[:BELONGS_TO]->(cat:Category)
+                 OPTIONAL MATCH (i)-[:HAS]->(img:Image)
+                 OPTIONAL MATCH (reviewer:User)-[w:WRITES]->(rv:Review)-[:ABOUT]->(o)
+                 WITH o, u, rel, i, b, country, cat, img, rv, reviewer, w
+                 RETURN o,
+                        {
+                            id: u.id,
+                            firstName: u.firstName,
+                            lastName: u.lastName,
+                            email: u.email
+                        } AS createdBy,
+                        coalesce(rel.dateAdded, o.dateAdded) AS dateAdded,
+                        collect(DISTINCT CASE
+                            WHEN i.id IS NOT NULL THEN {
+                                id: i.id,
+                                name: i.name,
+                                price: i.price,
+                                category: { categoryId: cat.id, name: cat.name }
+                            }
+                        END) AS rawItems,
+                        collect(DISTINCT CASE
+                            WHEN b.id IS NOT NULL AND i.id IS NOT NULL THEN {
+                                itemId: i.id,
+                                brandId: b.id,
+                                brandName: b.name,
+                                countryId: country.id,
+                                countryName: country.name,
+                                countryCode: country.countryCode
+                            }
+                        END) AS rawBrands,
+                        collect(DISTINCT CASE
+                            WHEN img.id IS NOT NULL AND i.id IS NOT NULL THEN {
+                                itemId: i.id,
+                                imageId: img.id,
+                                imageUrl: img.url
+                            }
+                        END) AS rawImages,
+                        collect(DISTINCT CASE
+                            WHEN rv.id IS NOT NULL THEN {
+                                id: rv.id,
+                                score: rv.score,
+                                text: rv.text,
+                                dateWritten: w.dateWritten,
+                                outfitId: o.id,
+                                writtenBy: {
+                                    id: reviewer.id,
+                                    firstName: reviewer.firstName,
+                                    lastName: reviewer.lastName,
+                                    email: reviewer.email
+                                }
+                            }
+                        END) AS rawReviews`,
                 { id: numericId }
             );
 
@@ -84,21 +149,24 @@ export class Neo4jOutfitRepository implements IOutfitRepository {
 
     async createOutfit(data: { name: string; style: string; createdBy: string }): Promise<Outfit[]> {
         try {
-            const maxResult = await neogma.queryRunner.run(`MATCH (o:Outfit) RETURN max(o.id) AS maxId`);
-            const maxId = maxResult.records[0]?.get("maxId") ?? 0;
-            const nextId = (maxId as number) + 1;
+            const maxResult = await neogma.queryRunner.run(
+                `MATCH (o:Outfit) RETURN coalesce(max(o.id), 0) AS maxId`
+            );
+
+            const rawMax = maxResult.records[0]?.get("maxId");
+            const nextId = this.toNumber(rawMax) + 1;
+            const dateAdded = new Date().toISOString();
 
             await neogma.queryRunner.run(
                 `MATCH (u:User { id: $userId })
-         CREATE (o:Outfit { id: $id, name: $name, style: $style, dateAdded: $dateAdded })
-         CREATE (u)-[:CREATES]->(o)
-         RETURN o`,
+                 CREATE (o:Outfit { id: $id, name: $name, style: $style, dateAdded: $dateAdded })
+                 CREATE (u)-[:CREATES { dateAdded: $dateAdded }]->(o)`,
                 {
                     id: nextId,
                     name: data.name,
                     style: data.style,
                     userId: data.createdBy,
-                    dateAdded: new Date().toISOString(),
+                    dateAdded,
                 }
             );
 
@@ -111,16 +179,15 @@ export class Neo4jOutfitRepository implements IOutfitRepository {
 
     async updateOutfit(id: string, data: Partial<{ name: string; style: string }>): Promise<Outfit[]> {
         try {
-            const numericId = Number(id);
-            const patch: { name?: string; style?: string } = {};
+            const numericId = this.parseNumericId(id, "outfit id");
+            const patch: Partial<{ name: string; style: string }> = {};
 
             if (typeof data.name === "string") patch.name = data.name;
             if (typeof data.style === "string") patch.style = data.style;
 
             await neogma.queryRunner.run(
                 `MATCH (o:Outfit { id: $id })
-         SET o += $patch
-         RETURN o`,
+                 SET o += $patch`,
                 { id: numericId, patch }
             );
 
@@ -133,10 +200,10 @@ export class Neo4jOutfitRepository implements IOutfitRepository {
 
     async deleteOutfit(id: string): Promise<void> {
         try {
-            const numericId = Number(id);
+            const numericId = this.parseNumericId(id, "outfit id");
             await neogma.queryRunner.run(
                 `MATCH (o:Outfit { id: $id })
-         DETACH DELETE o`,
+                 DETACH DELETE o`,
                 { id: numericId }
             );
         } catch (error) {
@@ -158,13 +225,13 @@ export class Neo4jOutfitRepository implements IOutfitRepository {
 
     async addItemToOutfit(id: string, itemId: string): Promise<Outfit[]> {
         try {
-            const numericOutfitId = Number(id);
-            const numericItemId = Number(itemId);
+            const numericOutfitId = this.parseNumericId(id, "outfit id");
+            const numericItemId = this.parseNumericId(itemId, "item id");
 
             await neogma.queryRunner.run(
                 `MATCH (o:Outfit { id: $outfitId })
-         MATCH (i:Item { id: $itemId })
-         MERGE (o)-[:CONTAINS]->(i)`,
+                 MATCH (i:Item { id: $itemId })
+                 MERGE (o)-[:CONTAINS]->(i)`,
                 { outfitId: numericOutfitId, itemId: numericItemId }
             );
 
@@ -177,12 +244,12 @@ export class Neo4jOutfitRepository implements IOutfitRepository {
 
     async removeItemFromOutfit(id: string, itemId: string): Promise<Outfit[]> {
         try {
-            const numericOutfitId = Number(id);
-            const numericItemId = Number(itemId);
+            const numericOutfitId = this.parseNumericId(id, "outfit id");
+            const numericItemId = this.parseNumericId(itemId, "item id");
 
             await neogma.queryRunner.run(
                 `MATCH (o:Outfit { id: $outfitId })-[rel:CONTAINS]->(i:Item { id: $itemId })
-         DELETE rel`,
+                 DELETE rel`,
                 { outfitId: numericOutfitId, itemId: numericItemId }
             );
 
@@ -196,21 +263,62 @@ export class Neo4jOutfitRepository implements IOutfitRepository {
     async getAllOutfitsByUserId(userId: string): Promise<Outfit[]> {
         try {
             const result = await neogma.queryRunner.run(
-                `MATCH (u:User {id: $userId})-[rel:CREATES]->(o:Outfit)
-         OPTIONAL MATCH (o)-[:CONTAINS]->(i:Item)
-         OPTIONAL MATCH (i)-[:MADE_BY]->(b:Brand)
-         OPTIONAL MATCH (b)-[:IS_FROM]->(country:Country)
-         OPTIONAL MATCH (i)-[:BELONGS_TO]->(cat:Category)
-         OPTIONAL MATCH (i)-[:HAS]->(img:Image)
-         OPTIONAL MATCH (reviewer:User)-[w:WRITES]->(rv:Review)-[:ABOUT]->(o)
-         WITH o, u, rel, i, b, country, cat, img, rv, w, reviewer
-         RETURN o,
-             u.id AS createdBy,
-             rel.dateAdded AS dateAdded,
-             collect(DISTINCT { id: i.id, name: i.name, price: i.price, category: cat.name }) AS rawItems,
-             collect(DISTINCT { itemId: i.id, brandId: b.id, brandName: b.name, countryId: country.id, countryName: country.name, countryCode: country.countryCode }) AS rawBrands,
-             collect(DISTINCT { itemId: i.id, imageId: img.id, imageUrl: img.url }) AS rawImages,
-             collect(DISTINCT { id: rv.id, score: rv.score, text: rv.text, writtenBy: reviewer.id, dateWritten: w.dateWritten, outfitId: o.id }) AS rawReviews`,
+                `MATCH (u:User { id: $userId })-[rel:CREATES]->(o:Outfit)
+                 OPTIONAL MATCH (o)-[:CONTAINS]->(i:Item)
+                 OPTIONAL MATCH (i)-[:MADE_BY]->(b:Brand)
+                 OPTIONAL MATCH (b)-[:IS_FROM]->(country:Country)
+                 OPTIONAL MATCH (i)-[:BELONGS_TO]->(cat:Category)
+                 OPTIONAL MATCH (i)-[:HAS]->(img:Image)
+                 OPTIONAL MATCH (reviewer:User)-[w:WRITES]->(rv:Review)-[:ABOUT]->(o)
+                 WITH o, u, rel, i, b, country, cat, img, rv, reviewer, w
+                 RETURN o,
+                        {
+                            id: u.id,
+                            firstName: u.firstName,
+                            lastName: u.lastName,
+                            email: u.email
+                        } AS createdBy,
+                        coalesce(rel.dateAdded, o.dateAdded) AS dateAdded,
+                        collect(DISTINCT CASE
+                            WHEN i.id IS NOT NULL THEN {
+                                id: i.id,
+                                name: i.name,
+                                price: i.price,
+                                category: { categoryId: cat.id, name: cat.name }
+                            }
+                        END) AS rawItems,
+                        collect(DISTINCT CASE
+                            WHEN b.id IS NOT NULL AND i.id IS NOT NULL THEN {
+                                itemId: i.id,
+                                brandId: b.id,
+                                brandName: b.name,
+                                countryId: country.id,
+                                countryName: country.name,
+                                countryCode: country.countryCode
+                            }
+                        END) AS rawBrands,
+                        collect(DISTINCT CASE
+                            WHEN img.id IS NOT NULL AND i.id IS NOT NULL THEN {
+                                itemId: i.id,
+                                imageId: img.id,
+                                imageUrl: img.url
+                            }
+                        END) AS rawImages,
+                        collect(DISTINCT CASE
+                            WHEN rv.id IS NOT NULL THEN {
+                                id: rv.id,
+                                score: rv.score,
+                                text: rv.text,
+                                dateWritten: w.dateWritten,
+                                outfitId: o.id,
+                                writtenBy: {
+                                    id: reviewer.id,
+                                    firstName: reviewer.firstName,
+                                    lastName: reviewer.lastName,
+                                    email: reviewer.email
+                                }
+                            }
+                        END) AS rawReviews`,
                 { userId }
             );
 
@@ -220,5 +328,23 @@ export class Neo4jOutfitRepository implements IOutfitRepository {
             console.error(`Error fetching outfits for user ${userId} from Neo4j:`, error);
             throw new Error("Failed to fetch outfits by user from Neo4j");
         }
+    }
+
+    private parseNumericId(value: string, fieldName: string): number {
+        const parsed = Number(value);
+        if (!Number.isInteger(parsed) || parsed <= 0) {
+            throw new Error(`Invalid ${fieldName}: "${value}"`);
+        }
+        return parsed;
+    }
+
+    private toNumber(value: unknown): number {
+        if (typeof value === "number") return value;
+        if (typeof value === "bigint") return Number(value);
+        if (value && typeof (value as { toNumber?: () => number }).toNumber === "function") {
+            return (value as { toNumber: () => number }).toNumber();
+        }
+        const n = Number(value ?? 0);
+        return Number.isFinite(n) ? n : 0;
     }
 }

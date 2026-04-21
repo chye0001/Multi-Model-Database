@@ -1,9 +1,9 @@
-import { Outfit, User, Item, Brand } from "../../database/mongo/models/index.js";
-import { formatUserOutfit, formatClothingItem } from "../../utils/repository_utils/ObjectFormatters.js";
+import { Outfit, User, Item } from "../../database/mongo/models/index.js";
+import { formatUserOutfit } from "../../utils/repository_utils/ObjectFormatters.js";
 
 import type { Outfit as OutfitDto } from "../../dtos/outfits/Outfit.dto.js";
 import type { ClothingItem } from "../../dtos/items/Item.dto.js";
-import type {IOutfitRepository} from "../interfaces/IOutfitRepository.js";
+import type { IOutfitRepository } from "../interfaces/IOutfitRepository.js";
 
 type CreateOutfitRequest = {
     name: string;
@@ -20,9 +20,8 @@ export class MongoOutfitRepository implements IOutfitRepository {
     async getAllOutfits(style?: string): Promise<OutfitDto[]> {
         try {
             const query = style ? { style } : {};
-            const outfits = await Outfit.find(query).populate("createdBy").populate("itemIds").lean().exec();
-            const hydrated = await this.hydrateOutfits(outfits);
-            return hydrated.map((outfit) => formatUserOutfit(outfit, "mongodb"));
+            const outfits = await Outfit.find(query).lean().exec();
+            return outfits.map((outfit) => formatUserOutfit(outfit, "mongodb"));
         } catch (error) {
             console.error("Error fetching outfits from MongoDB:", error);
             throw new Error("Failed to fetch outfits from MongoDB");
@@ -32,12 +31,9 @@ export class MongoOutfitRepository implements IOutfitRepository {
     async getOutfitById(id: string): Promise<OutfitDto[]> {
         try {
             const numericId = this.parseNumericId(id, "outfit id");
-            const outfit = await Outfit.findOne({ id: numericId }).populate("createdBy").populate("itemIds").lean().exec();
-
+            const outfit = await Outfit.findOne({ id: numericId }).lean().exec();
             if (!outfit) return [];
-
-            const hydrated = await this.hydrateOutfits([outfit]);
-            return hydrated.map((o) => formatUserOutfit(o, "mongodb"));
+            return [formatUserOutfit(outfit, "mongodb")];
         } catch (error) {
             console.error(`Error fetching outfit ${id} from MongoDB:`, error);
             throw new Error("Failed to fetch outfit from MongoDB");
@@ -46,7 +42,11 @@ export class MongoOutfitRepository implements IOutfitRepository {
 
     async createOutfit(data: CreateOutfitRequest): Promise<OutfitDto[]> {
         try {
-            const user = await User.findOne({ id: data.createdBy }).lean().exec();
+            const user = await User.findOne({ id: data.createdBy })
+                .select("id firstName lastName email")
+                .lean()
+                .exec();
+
             if (!user) throw new Error(`User with id "${data.createdBy}" not found`);
 
             const max = await Outfit.findOne().sort({ id: -1 }).lean().exec();
@@ -56,8 +56,13 @@ export class MongoOutfitRepository implements IOutfitRepository {
                 id: nextId,
                 name: data.name,
                 style: data.style,
-                createdBy: user._id,
-                itemIds: [],
+                createdBy: {
+                    id: user.id,
+                    firstName: user.firstName,
+                    lastName: user.lastName,
+                    email: user.email,
+                },
+                items: [],
                 reviews: [],
             });
 
@@ -79,7 +84,7 @@ export class MongoOutfitRepository implements IOutfitRepository {
             const updated = await Outfit.findOneAndUpdate({ id: numericId }, patch, { new: true }).lean().exec();
             if (!updated) return [];
 
-            return await this.getOutfitById(id);
+            return [formatUserOutfit(updated, "mongodb")];
         } catch (error) {
             console.error(`Error updating outfit ${id} in MongoDB:`, error);
             throw new Error("Failed to update outfit in MongoDB");
@@ -112,13 +117,15 @@ export class MongoOutfitRepository implements IOutfitRepository {
             const numericOutfitId = this.parseNumericId(id, "outfit id");
             const numericItemId = this.parseNumericId(itemId, "item id");
 
-            const outfit = await Outfit.findOne({ id: numericOutfitId }).lean().exec();
-            if (!outfit) return [];
-
             const item = await Item.findOne({ id: numericItemId }).lean().exec();
             if (!item) throw new Error(`Item with id "${itemId}" not found`);
 
-            await Outfit.updateOne({ id: numericOutfitId }, { $addToSet: { itemIds: item._id } }).exec();
+            const embeddedItem = this.toEmbeddedItem(item);
+
+            await Outfit.updateOne(
+                { id: numericOutfitId, "items.id": { $ne: numericItemId } },
+                { $push: { items: embeddedItem } }
+            ).exec();
 
             return await this.getOutfitById(id);
         } catch (error) {
@@ -132,10 +139,10 @@ export class MongoOutfitRepository implements IOutfitRepository {
             const numericOutfitId = this.parseNumericId(id, "outfit id");
             const numericItemId = this.parseNumericId(itemId, "item id");
 
-            const item = await Item.findOne({ id: numericItemId }).lean().exec();
-            if (!item) throw new Error(`Item with id "${itemId}" not found`);
-
-            await Outfit.updateOne({ id: numericOutfitId }, { $pull: { itemIds: item._id } }).exec();
+            await Outfit.updateOne(
+                { id: numericOutfitId },
+                { $pull: { items: { id: numericItemId } } }
+            ).exec();
 
             return await this.getOutfitById(id);
         } catch (error) {
@@ -146,13 +153,8 @@ export class MongoOutfitRepository implements IOutfitRepository {
 
     async getAllOutfitsByUserId(userId: string): Promise<OutfitDto[]> {
         try {
-            const foundUser = await User.findOne({ id: userId }).lean().exec();
-            if (!foundUser) return [];
-
-            const outfits = await Outfit.find({ createdBy: foundUser._id }).populate("createdBy").populate("itemIds").lean().exec();
-            const hydrated = await this.hydrateOutfits(outfits);
-
-            return hydrated.map((outfit) => formatUserOutfit(outfit, "mongodb"));
+            const outfits = await Outfit.find({ "createdBy.id": userId }).lean().exec();
+            return outfits.map((outfit) => formatUserOutfit(outfit, "mongodb"));
         } catch (error) {
             console.error(`Error fetching outfits for user ${userId} from MongoDB:`, error);
             throw new Error("Failed to fetch outfits by user from MongoDB");
@@ -167,52 +169,32 @@ export class MongoOutfitRepository implements IOutfitRepository {
         return parsed;
     }
 
-    private async hydrateOutfits(outfits: any[]): Promise<any[]> {
-        const withReviews = await this.populateReviews(outfits);
-
-        return Promise.all(
-            withReviews.map(async (outfit) => ({
-                ...outfit,
-                itemIds: await this.populateBrands(outfit.itemIds ?? []),
-            }))
-        );
-    }
-
-    private async populateBrands(items: any[]): Promise<any[]> {
-        return Promise.all(
-            items.map(async (item: any) => {
-                const brandIds: any[] = Array.isArray(item.brandIds) ? item.brandIds : [];
-
-                const brands = await Promise.all(
-                    brandIds.map((brandId: any) => Brand.findOne({ _id: brandId }).select("id name").lean().exec())
-                );
-
-                return { ...item, brands: brands.filter(Boolean) };
-            })
-        );
-    }
-
-    private async resolveReviews(reviews: any[]): Promise<any[]> {
-        const list = Array.isArray(reviews) ? reviews : [];
-
-        return Promise.all(
-            list.map(async (review: any) => {
-                const writtenByDoc = await User.findOne({ _id: review.writtenBy }).select("id email firstName lastName").lean().exec();
-
-                return {
-                    ...review,
-                    writtenBy: writtenByDoc ?? review.writtenBy,
-                };
-            })
-        );
-    }
-
-    private async populateReviews(outfits: any[]): Promise<any[]> {
-        return Promise.all(
-            outfits.map(async (outfit: any) => ({
-                ...outfit,
-                reviews: await this.resolveReviews(outfit.reviews ?? []),
-            }))
-        );
+    private toEmbeddedItem(item: any): any {
+        return {
+            id: Number(item.id),
+            name: item.name,
+            price: item.price ?? null,
+            category: {
+                categoryId: Number(item.category?.categoryId ?? 0),
+                name: item.category?.name ?? "Uncategorized",
+            },
+            brands: Array.isArray(item.brands)
+                ? item.brands.map((brand: any) => ({
+                    id: Number(brand.id),
+                    name: brand.name,
+                    country: {
+                        id: Number(brand.country?.id ?? 0),
+                        name: brand.country?.name ?? "Unknown",
+                        countryCode: brand.country?.countryCode ?? "",
+                    },
+                }))
+                : [],
+            images: Array.isArray(item.images)
+                ? item.images.map((img: any) => ({
+                    id: Number(img.id),
+                    url: img.url,
+                }))
+                : [],
+        };
     }
 }

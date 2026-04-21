@@ -1,6 +1,6 @@
-// repositories/mongo/MongoClosetRepository.ts
 import { Closet } from "../../database/mongo/models/closets/Closet.model.js";
 import { Item } from "../../database/mongo/models/clothings/Item.model.js";
+import { User } from "../../database/mongo/models/users/User.model.js";
 import { formatUserCloset, formatClothingItem } from "../../utils/repository_utils/ObjectFormatters.js";
 
 import type { IClosetRepository } from "../interfaces/IClosetRepository.js";
@@ -10,7 +10,10 @@ import type { ClothingItem } from "../../dtos/items/Item.dto.js";
 export class MongoClosetRepository implements IClosetRepository {
     async getAllClosets(): Promise<ClosetDTO[]> {
         try {
-            const closets = await Closet.find({ isPublic: true }).populate("userId itemIds").exec();
+            const closets = await Closet.find({ isPublic: true })
+                .populate("userId itemIds")
+                .exec();
+
             return closets.map((closet) => formatUserCloset(closet, "mongodb"));
         } catch (error) {
             console.error("Error fetching closets from MongoDB:", error);
@@ -20,7 +23,11 @@ export class MongoClosetRepository implements IClosetRepository {
 
     async getClosetById(id: string): Promise<ClosetDTO[]> {
         try {
-            const closet = await Closet.findOne({ id: parseInt(id) }).populate("userId itemIds").exec();
+            const numericId = this.parseNumericId(id, "closet id");
+            const closet = await Closet.findOne({ id: numericId })
+                .populate("userId itemIds")
+                .exec();
+
             if (!closet) return [];
             return [formatUserCloset(closet, "mongodb")];
         } catch (error) {
@@ -31,16 +38,20 @@ export class MongoClosetRepository implements IClosetRepository {
 
     async createCloset(data: { name: string; description?: string; isPublic: boolean; userId: string }): Promise<ClosetDTO[]> {
         try {
-            // Get the next ID
+            const owner = await User.findOne({ id: data.userId }).exec();
+            if (!owner) {
+                throw new Error(`User not found: ${data.userId}`);
+            }
+
             const lastCloset = await Closet.findOne().sort({ id: -1 }).exec();
             const nextId = (lastCloset?.id ?? 0) + 1;
 
             const newCloset = new Closet({
                 id: nextId,
                 name: data.name,
-                description: data.description || null,
+                description: data.description ?? null,
                 isPublic: data.isPublic,
-                userId: data.userId,
+                userId: owner._id, // store Mongo ref, formatter reads populated userId.id
                 itemIds: [],
                 sharedWith: [],
             });
@@ -56,12 +67,14 @@ export class MongoClosetRepository implements IClosetRepository {
 
     async updateCloset(id: string, data: Partial<{ name: string; description: string; isPublic: boolean }>): Promise<ClosetDTO[]> {
         try {
-            const patch: any = {};
+            const numericId = this.parseNumericId(id, "closet id");
+            const patch: Partial<{ name: string; description: string; isPublic: boolean }> = {};
+
             if (typeof data.name === "string") patch.name = data.name;
             if (typeof data.description === "string") patch.description = data.description;
             if (typeof data.isPublic === "boolean") patch.isPublic = data.isPublic;
 
-            const closet = await Closet.findOneAndUpdate({ id: parseInt(id) }, patch, { new: true })
+            const closet = await Closet.findOneAndUpdate({ id: numericId }, patch, { new: true })
                 .populate("userId itemIds")
                 .exec();
 
@@ -75,7 +88,8 @@ export class MongoClosetRepository implements IClosetRepository {
 
     async deleteCloset(id: string): Promise<void> {
         try {
-            await Closet.deleteOne({ id: parseInt(id) }).exec();
+            const numericId = this.parseNumericId(id, "closet id");
+            await Closet.deleteOne({ id: numericId }).exec();
         } catch (error) {
             console.error(`Error deleting closet ${id} from MongoDB:`, error);
             throw new Error("Failed to delete closet from MongoDB");
@@ -84,7 +98,8 @@ export class MongoClosetRepository implements IClosetRepository {
 
     async getClosetItems(id: string): Promise<ClothingItem[]> {
         try {
-            const closet = await Closet.findOne({ id: parseInt(id) }).populate("itemIds").exec();
+            const numericId = this.parseNumericId(id, "closet id");
+            const closet = await Closet.findOne({ id: numericId }).exec();
             if (!closet) return [];
 
             const items = await Item.find({ _id: { $in: closet.itemIds } }).exec();
@@ -97,9 +112,15 @@ export class MongoClosetRepository implements IClosetRepository {
 
     async addItemToCloset(closetId: string, itemId: string): Promise<ClosetDTO[]> {
         try {
+            const numericClosetId = this.parseNumericId(closetId, "closet id");
+            const numericItemId = this.parseNumericId(itemId, "item id");
+
+            const item = await Item.findOne({ id: numericItemId }).exec();
+            if (!item) return [];
+
             const closet = await Closet.findOneAndUpdate(
-                { id: parseInt(closetId) },
-                { $addToSet: { itemIds: itemId } },
+                { id: numericClosetId },
+                { $addToSet: { itemIds: item._id } },
                 { new: true }
             )
                 .populate("userId itemIds")
@@ -115,9 +136,15 @@ export class MongoClosetRepository implements IClosetRepository {
 
     async removeItemFromCloset(closetId: string, itemId: string): Promise<ClosetDTO[]> {
         try {
+            const numericClosetId = this.parseNumericId(closetId, "closet id");
+            const numericItemId = this.parseNumericId(itemId, "item id");
+
+            const item = await Item.findOne({ id: numericItemId }).exec();
+            if (!item) return [];
+
             const closet = await Closet.findOneAndUpdate(
-                { id: parseInt(closetId) },
-                { $pull: { itemIds: itemId } },
+                { id: numericClosetId },
+                { $pull: { itemIds: item._id } },
                 { new: true }
             )
                 .populate("userId itemIds")
@@ -133,11 +160,25 @@ export class MongoClosetRepository implements IClosetRepository {
 
     async getUserClosets(userId: string): Promise<ClosetDTO[]> {
         try {
-            const closets = await Closet.find({ userId }).populate("userId itemIds").exec();
+            const owner = await User.findOne({ id: userId }).exec();
+            if (!owner) return [];
+
+            const closets = await Closet.find({ userId: owner._id })
+                .populate("userId itemIds")
+                .exec();
+
             return closets.map((closet) => formatUserCloset(closet, "mongodb"));
         } catch (error) {
             console.error(`Error fetching closets for user ${userId} from MongoDB:`, error);
             throw new Error("Failed to fetch user closets from MongoDB");
         }
+    }
+
+    private parseNumericId(value: string, fieldName: string): number {
+        const parsed = Number(value);
+        if (!Number.isInteger(parsed) || parsed <= 0) {
+            throw new Error(`Invalid ${fieldName}: "${value}"`);
+        }
+        return parsed;
     }
 }

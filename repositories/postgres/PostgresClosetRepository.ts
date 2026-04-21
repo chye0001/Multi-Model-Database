@@ -14,11 +14,7 @@ const closetInclude = {
                     images: true,
                     itemBrands: {
                         include: {
-                            brand: {
-                                include: {
-                                    country: true,
-                                },
-                            },
+                            brand: { include: { country: true } },
                         },
                     },
                 },
@@ -26,8 +22,13 @@ const closetInclude = {
         },
     },
     user: true,
-    sharedCloset: true,
+    sharedCloset: {
+        include: {
+            user: true,
+        },
+    },
 };
+
 
 export class PostgresClosetRepository implements IClosetRepository {
     async getAllClosets(): Promise<Closet[]> {

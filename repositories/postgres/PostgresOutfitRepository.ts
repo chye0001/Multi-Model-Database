@@ -1,11 +1,12 @@
 import { prisma } from "../../database/postgres/prisma-client.js";
-import { formatUserOutfit, formatClothingItem } from "../../utils/repository_utils/ObjectFormatters.js";
+import { formatUserOutfit } from "../../utils/repository_utils/ObjectFormatters.js";
 
 import type { IOutfitRepository } from "../interfaces/IOutfitRepository.js";
 import type { Outfit } from "../../dtos/outfits/Outfit.dto.js";
 import type { ClothingItem } from "../../dtos/items/Item.dto.js";
 
 const outfitInclude = {
+    user: true,
     outfitItems: {
         include: {
             closetItem: {
@@ -29,7 +30,11 @@ const outfitInclude = {
             },
         },
     },
-    reviews: true,
+    reviews: {
+        include: {
+            user: true,
+        },
+    },
 };
 
 export class PostgresOutfitRepository implements IOutfitRepository {
@@ -48,7 +53,7 @@ export class PostgresOutfitRepository implements IOutfitRepository {
 
     async getOutfitById(id: string): Promise<Outfit[]> {
         try {
-            const numericId = BigInt(id);
+            const numericId = this.parseBigIntId(id, "outfit id");
             const outfit = await prisma.outfit.findUnique({
                 where: { id: numericId },
                 include: outfitInclude,
@@ -80,7 +85,7 @@ export class PostgresOutfitRepository implements IOutfitRepository {
 
     async updateOutfit(id: string, data: Partial<{ name: string; style: string }>): Promise<Outfit[]> {
         try {
-            const numericId = BigInt(id);
+            const numericId = this.parseBigIntId(id, "outfit id");
             const patch: Partial<{ name: string; style: string }> = {};
 
             if (typeof data.name === "string") patch.name = data.name;
@@ -100,7 +105,7 @@ export class PostgresOutfitRepository implements IOutfitRepository {
 
     async deleteOutfit(id: string): Promise<void> {
         try {
-            const numericId = BigInt(id);
+            const numericId = this.parseBigIntId(id, "outfit id");
             await prisma.outfit.delete({
                 where: { id: numericId },
             });
@@ -123,8 +128,8 @@ export class PostgresOutfitRepository implements IOutfitRepository {
 
     async addItemToOutfit(id: string, itemId: string): Promise<Outfit[]> {
         try {
-            const outfitId = BigInt(id);
-            const numericItemId = BigInt(itemId);
+            const outfitId = this.parseBigIntId(id, "outfit id");
+            const numericItemId = this.parseBigIntId(itemId, "item id");
 
             const item = await prisma.item.findUnique({
                 where: { id: numericItemId },
@@ -134,14 +139,23 @@ export class PostgresOutfitRepository implements IOutfitRepository {
             const closetItem = await prisma.closetItem.findFirst({
                 where: { itemId: numericItemId },
             });
-            if (!closetItem) throw new Error(`Item not found in any closet`);
+            if (!closetItem) throw new Error(`Item with id "${itemId}" is not in any closet`);
 
-            await prisma.outfitItem.create({
-                data: {
+            const existing = await prisma.outfitItem.findFirst({
+                where: {
                     outfitId,
                     closetItemId: closetItem.id,
                 },
             });
+
+            if (!existing) {
+                await prisma.outfitItem.create({
+                    data: {
+                        outfitId,
+                        closetItemId: closetItem.id,
+                    },
+                });
+            }
 
             return await this.getOutfitById(id);
         } catch (error) {
@@ -152,13 +166,13 @@ export class PostgresOutfitRepository implements IOutfitRepository {
 
     async removeItemFromOutfit(id: string, itemId: string): Promise<Outfit[]> {
         try {
-            const outfitId = BigInt(id);
-            const numericItemId = BigInt(itemId);
+            const outfitId = this.parseBigIntId(id, "outfit id");
+            const numericItemId = this.parseBigIntId(itemId, "item id");
 
             const closetItem = await prisma.closetItem.findFirst({
                 where: { itemId: numericItemId },
             });
-            if (!closetItem) throw new Error(`Item not found in any closet`);
+            if (!closetItem) return await this.getOutfitById(id);
 
             await prisma.outfitItem.deleteMany({
                 where: {
@@ -185,5 +199,13 @@ export class PostgresOutfitRepository implements IOutfitRepository {
             console.error(`Error fetching outfits for user ${userId} from PostgreSQL:`, error);
             throw new Error("Failed to fetch outfits by user from PostgreSQL");
         }
+    }
+
+    private parseBigIntId(value: string, fieldName: string): bigint {
+        const parsed = Number(value);
+        if (!Number.isInteger(parsed) || parsed <= 0) {
+            throw new Error(`Invalid ${fieldName}: "${value}"`);
+        }
+        return BigInt(parsed);
     }
 }
