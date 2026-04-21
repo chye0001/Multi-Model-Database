@@ -14,10 +14,21 @@ export class Neo4jClosetRepository implements IClosetRepository {
                  OPTIONAL MATCH (owner:User)-[has:HAS]->(cl)
                  OPTIONAL MATCH (cl)-[:STORES]->(i:Item)
                  OPTIONAL MATCH (sharedUser:User)-[:CO_CURATES]->(cl)
-                 WITH cl, has,
+                 WITH cl, owner, has,
                       collect(DISTINCT i.id) AS itemIds,
-                      collect(DISTINCT sharedUser.id) AS sharedWith
-                 RETURN cl, itemIds, sharedWith, coalesce(has.createdAt, cl.createdAt) AS createdAt`
+                      [entry IN collect(DISTINCT CASE
+                          WHEN sharedUser.id IS NOT NULL THEN {
+                              id: sharedUser.id,
+                              firstName: sharedUser.firstName,
+                              lastName: sharedUser.lastName,
+                              email: sharedUser.email
+                          }
+                      END) WHERE entry IS NOT NULL] AS sharedWith
+                 RETURN cl,
+                        coalesce(owner.id, cl.userId) AS userId,
+                        itemIds,
+                        sharedWith,
+                        coalesce(has.createdAt, cl.createdAt) AS createdAt`
             );
 
             return result.records.map((record) => formatUserCloset(record, "neo4j"));
@@ -36,10 +47,21 @@ export class Neo4jClosetRepository implements IClosetRepository {
                  OPTIONAL MATCH (owner:User)-[has:HAS]->(cl)
                  OPTIONAL MATCH (cl)-[:STORES]->(i:Item)
                  OPTIONAL MATCH (sharedUser:User)-[:CO_CURATES]->(cl)
-                 WITH cl, has,
+                 WITH cl, owner, has,
                       collect(DISTINCT i.id) AS itemIds,
-                      collect(DISTINCT sharedUser.id) AS sharedWith
-                 RETURN cl, itemIds, sharedWith, coalesce(has.createdAt, cl.createdAt) AS createdAt`,
+                      [entry IN collect(DISTINCT CASE
+                          WHEN sharedUser.id IS NOT NULL THEN {
+                              id: sharedUser.id,
+                              firstName: sharedUser.firstName,
+                              lastName: sharedUser.lastName,
+                              email: sharedUser.email
+                          }
+                      END) WHERE entry IS NOT NULL] AS sharedWith
+                 RETURN cl,
+                        coalesce(owner.id, cl.userId) AS userId,
+                        itemIds,
+                        sharedWith,
+                        coalesce(has.createdAt, cl.createdAt) AS createdAt`,
                 { id: numericId }
             );
 
@@ -150,8 +172,8 @@ export class Neo4jClosetRepository implements IClosetRepository {
 
                 const brands = (record.get("brands") as Array<{ id: number | null; name: string | null; countryId?: number | null; countryName?: string | null; countryCode?: string | null }>)
                     .filter((b) => b.id !== null && b.name !== null)
-                    .map((b) => ({ 
-                        id: Number(b.id), 
+                    .map((b) => ({
+                        id: Number(b.id),
                         name: String(b.name),
                         country: {
                             id: b.countryId ?? 0,
@@ -223,10 +245,21 @@ export class Neo4jClosetRepository implements IClosetRepository {
                 `MATCH (u:User { id: $userId })-[has:HAS]->(cl:Closet)
                  OPTIONAL MATCH (cl)-[:STORES]->(i:Item)
                  OPTIONAL MATCH (sharedUser:User)-[:CO_CURATES]->(cl)
-                 WITH cl, has,
+                 WITH cl, u, has,
                       collect(DISTINCT i.id) AS itemIds,
-                      collect(DISTINCT sharedUser.id) AS sharedWith
-                 RETURN cl, itemIds, sharedWith, coalesce(has.createdAt, cl.createdAt) AS createdAt`,
+                      [entry IN collect(DISTINCT CASE
+                          WHEN sharedUser.id IS NOT NULL THEN {
+                              id: sharedUser.id,
+                              firstName: sharedUser.firstName,
+                              lastName: sharedUser.lastName,
+                              email: sharedUser.email
+                          }
+                      END) WHERE entry IS NOT NULL] AS sharedWith
+                 RETURN cl,
+                        u.id AS userId,
+                        itemIds,
+                        sharedWith,
+                        coalesce(has.createdAt, cl.createdAt) AS createdAt`,
                 { userId }
             );
 

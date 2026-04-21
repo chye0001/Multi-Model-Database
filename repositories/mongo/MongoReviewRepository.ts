@@ -6,21 +6,13 @@ import type { Review } from "../../dtos/reviews/Review.dto.js";
 
 export class MongoReviewRepository implements IReviewRepository {
     async getAllReviews(): Promise<Review[]> {
-        const outfits = await Outfit.find()
-            .populate("reviews.writtenBy")
-            .lean()
-            .exec();
-
+        const outfits = await Outfit.find().lean().exec();
         return this.flattenReviews(outfits);
     }
 
     async getReviewById(id: string): Promise<Review[]> {
         const reviewId = this.parseNumericId(id, "review id");
-        const outfit = await Outfit.findOne({ "reviews.id": reviewId })
-            .populate("reviews.writtenBy")
-            .lean()
-            .exec();
-
+        const outfit = await Outfit.findOne({ "reviews.id": reviewId }).lean().exec();
         if (!outfit) return [];
 
         const review = (outfit.reviews ?? []).find((r: any) => r.id === reviewId);
@@ -31,7 +23,11 @@ export class MongoReviewRepository implements IReviewRepository {
 
     async createReview(data: { score: number; text: string; outfitId: string; writtenBy: string }): Promise<Review[]> {
         const outfitId = this.parseNumericId(data.outfitId, "outfit id");
-        const user = await User.findOne({ id: data.writtenBy }).lean().exec();
+
+        const user = await User.findOne({ id: data.writtenBy })
+            .select("id firstName lastName email")
+            .lean()
+            .exec();
         if (!user) throw new Error(`User "${data.writtenBy}" not found`);
 
         const outfit = await Outfit.findOne({ id: outfitId }).lean().exec();
@@ -54,7 +50,12 @@ export class MongoReviewRepository implements IReviewRepository {
                         id: nextId,
                         score: data.score,
                         text: data.text,
-                        writtenBy: user._id,
+                        writtenBy: {
+                            id: user.id,
+                            firstName: user.firstName,
+                            lastName: user.lastName,
+                            email: user.email,
+                        },
                         dateWritten: new Date(),
                     },
                 },
@@ -87,10 +88,7 @@ export class MongoReviewRepository implements IReviewRepository {
 
     async getOutfitReviews(outfitId: string): Promise<Review[]> {
         const numericOutfitId = this.parseNumericId(outfitId, "outfit id");
-        const outfit = await Outfit.findOne({ id: numericOutfitId })
-            .populate("reviews.writtenBy")
-            .lean()
-            .exec();
+        const outfit = await Outfit.findOne({ id: numericOutfitId }).lean().exec();
 
         if (!outfit) return [];
         const reviews = outfit.reviews ?? [];
@@ -98,16 +96,9 @@ export class MongoReviewRepository implements IReviewRepository {
     }
 
     async getUserReviews(userId: string): Promise<Review[]> {
-        const user = await User.findOne({ id: userId }).lean().exec();
-        if (!user) return [];
-
-        const outfits = await Outfit.find({ "reviews.writtenBy": user._id })
-            .populate("reviews.writtenBy")
-            .lean()
-            .exec();
-
+        const outfits = await Outfit.find({ "reviews.writtenBy.id": userId }).lean().exec();
         const all = this.flattenReviews(outfits);
-        return all.filter((r) => r.writtenBy === userId);
+        return all.filter((r) => r.writtenBy.id === userId);
     }
 
     private flattenReviews(outfits: any[]): Review[] {

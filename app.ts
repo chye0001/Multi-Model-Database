@@ -23,6 +23,7 @@ import brandsRouter from "./routes/brands.router.js";
 import outfitRouter from "./routes/outfit.router.js";
 import closetsRouter from "./routes/closets.router.js";
 import reviewsRouter from "./routes/reviews.router.js";
+import imagesRouter from "./routes/images.router.js";
 
 app.use("/users", userRouter);
 app.use("/auth", authRouter);
@@ -33,6 +34,7 @@ app.use("/brands", brandsRouter);
 app.use("/outfits", outfitRouter);
 app.use("/closets", closetsRouter);
 app.use("/reviews", reviewsRouter);
+app.use("/images", imagesRouter);
 
 const port = 3001;
 app.listen(port, () => {

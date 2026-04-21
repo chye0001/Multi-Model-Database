@@ -9,7 +9,13 @@ export class Neo4jReviewRepository implements IReviewRepository {
         const result = await neogma.queryRunner.run(
             `MATCH (rv:Review)-[:ABOUT]->(o:Outfit)
              OPTIONAL MATCH (u:User)-[w:WRITES]->(rv)
-             RETURN rv, o.id AS outfitId, u.id AS writtenBy, w.dateWritten AS dateWritten`
+             RETURN rv,
+                    o.id AS outfitId,
+                    CASE
+                        WHEN u IS NULL THEN { id: "", firstName: "", lastName: "", email: "" }
+                        ELSE { id: u.id, firstName: u.firstName, lastName: u.lastName, email: u.email }
+                    END AS writtenBy,
+                    w.dateWritten AS dateWritten`
         );
         return result.records.map((record) => formatUserReview(record, "neo4j"));
     }
@@ -19,7 +25,13 @@ export class Neo4jReviewRepository implements IReviewRepository {
         const result = await neogma.queryRunner.run(
             `MATCH (rv:Review { id: $id })-[:ABOUT]->(o:Outfit)
              OPTIONAL MATCH (u:User)-[w:WRITES]->(rv)
-             RETURN rv, o.id AS outfitId, u.id AS writtenBy, w.dateWritten AS dateWritten`,
+             RETURN rv,
+                    o.id AS outfitId,
+                    CASE
+                        WHEN u IS NULL THEN { id: "", firstName: "", lastName: "", email: "" }
+                        ELSE { id: u.id, firstName: u.firstName, lastName: u.lastName, email: u.email }
+                    END AS writtenBy,
+                    w.dateWritten AS dateWritten`,
             { id: reviewId }
         );
         if (result.records.length === 0) return [];
@@ -42,7 +54,10 @@ export class Neo4jReviewRepository implements IReviewRepository {
              CREATE (rv:Review { id: $id, score: $score, text: $text })
              CREATE (u)-[:WRITES { dateWritten: $dateWritten }]->(rv)
              CREATE (rv)-[:ABOUT]->(o)
-             RETURN rv, o.id AS outfitId, u.id AS writtenBy, $dateWritten AS dateWritten`,
+             RETURN rv,
+                    o.id AS outfitId,
+                    { id: u.id, firstName: u.firstName, lastName: u.lastName, email: u.email } AS writtenBy,
+                    $dateWritten AS dateWritten`,
             {
                 id: nextId,
                 score: data.score,
@@ -90,7 +105,13 @@ export class Neo4jReviewRepository implements IReviewRepository {
         const result = await neogma.queryRunner.run(
             `MATCH (rv:Review)-[:ABOUT]->(o:Outfit { id: $outfitId })
              OPTIONAL MATCH (u:User)-[w:WRITES]->(rv)
-             RETURN rv, o.id AS outfitId, u.id AS writtenBy, w.dateWritten AS dateWritten`,
+             RETURN rv,
+                    o.id AS outfitId,
+                    CASE
+                        WHEN u IS NULL THEN { id: "", firstName: "", lastName: "", email: "" }
+                        ELSE { id: u.id, firstName: u.firstName, lastName: u.lastName, email: u.email }
+                    END AS writtenBy,
+                    w.dateWritten AS dateWritten`,
             { outfitId: numericOutfitId }
         );
         return result.records.map((record) => formatUserReview(record, "neo4j"));
@@ -99,7 +120,10 @@ export class Neo4jReviewRepository implements IReviewRepository {
     async getUserReviews(userId: string): Promise<Review[]> {
         const result = await neogma.queryRunner.run(
             `MATCH (u:User { id: $userId })-[w:WRITES]->(rv:Review)-[:ABOUT]->(o:Outfit)
-             RETURN rv, o.id AS outfitId, u.id AS writtenBy, w.dateWritten AS dateWritten`,
+             RETURN rv,
+                    o.id AS outfitId,
+                    { id: u.id, firstName: u.firstName, lastName: u.lastName, email: u.email } AS writtenBy,
+                    w.dateWritten AS dateWritten`,
             { userId }
         );
         return result.records.map((record) => formatUserReview(record, "neo4j"));
