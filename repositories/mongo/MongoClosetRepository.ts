@@ -6,6 +6,7 @@ import { formatUserCloset, formatClothingItem } from "../../utils/repository_uti
 import type { IClosetRepository } from "../interfaces/IClosetRepository.js";
 import type { Closet as ClosetDTO } from "../../dtos/closets/Closet.dto.js";
 import type { ClothingItem } from "../../dtos/items/Item.dto.js";
+import { audit } from "../../utils/audit/AuditLogger.ts";
 
 export class MongoClosetRepository implements IClosetRepository {
     async getAllClosets(): Promise<ClosetDTO[]> {
@@ -37,11 +38,17 @@ export class MongoClosetRepository implements IClosetRepository {
     }
 
     async createCloset(data: { name: string; description?: string; isPublic: boolean; userId: string }): Promise<ClosetDTO[]> {
+        audit({
+            timestamp: new Date().toISOString(),
+            event: 'DOCUMENT_CREATE',
+            label: 'Closet',
+            params: { name: data.name, isPublic: data.isPublic, userId: data.userId },
+            source: 'MongoClosetRepository.createCloset',
+        });
+
         try {
             const owner = await User.findOne({ id: data.userId }).exec();
-            if (!owner) {
-                throw new Error(`User not found: ${data.userId}`);
-            }
+            if (!owner) throw new Error(`User not found: ${data.userId}`);
 
             const lastCloset = await Closet.findOne().sort({ id: -1 }).exec();
             const nextId = (lastCloset?.id ?? 0) + 1;
@@ -51,7 +58,7 @@ export class MongoClosetRepository implements IClosetRepository {
                 name: data.name,
                 description: data.description ?? null,
                 isPublic: data.isPublic,
-                userId: owner._id, // store Mongo ref, formatter reads populated userId.id
+                userId: owner._id,
                 itemIds: [],
                 sharedWith: [],
             });
@@ -65,11 +72,19 @@ export class MongoClosetRepository implements IClosetRepository {
         }
     }
 
+
     async updateCloset(id: string, data: Partial<{ name: string; description: string; isPublic: boolean }>): Promise<ClosetDTO[]> {
+        audit({
+            timestamp: new Date().toISOString(),
+            event: 'DOCUMENT_UPDATE',
+            label: 'Closet',
+            params: { id, ...data },
+            source: 'MongoClosetRepository.updateCloset',
+        });
+        
         try {
             const numericId = this.parseNumericId(id, "closet id");
             const patch: Partial<{ name: string; description: string; isPublic: boolean }> = {};
-
             if (typeof data.name === "string") patch.name = data.name;
             if (typeof data.description === "string") patch.description = data.description;
             if (typeof data.isPublic === "boolean") patch.isPublic = data.isPublic;
@@ -87,6 +102,14 @@ export class MongoClosetRepository implements IClosetRepository {
     }
 
     async deleteCloset(id: string): Promise<void> {
+        audit({
+            timestamp: new Date().toISOString(),
+            event: 'DOCUMENT_DELETE',
+            label: 'Closet',
+            params: { id },
+            source: 'MongoClosetRepository.deleteCloset',
+        });
+
         try {
             const numericId = this.parseNumericId(id, "closet id");
             await Closet.deleteOne({ id: numericId }).exec();
@@ -111,6 +134,14 @@ export class MongoClosetRepository implements IClosetRepository {
     }
 
     async addItemToCloset(closetId: string, itemId: string): Promise<ClosetDTO[]> {
+        audit({
+            timestamp: new Date().toISOString(),
+            event: 'DOCUMENT_UPDATE',
+            label: 'Closet.itemIds',
+            params: { closetId, itemId, operation: 'addToSet' },
+            source: 'MongoClosetRepository.addItemToCloset',
+        });
+
         try {
             const numericClosetId = this.parseNumericId(closetId, "closet id");
             const numericItemId = this.parseNumericId(itemId, "item id");
@@ -134,7 +165,16 @@ export class MongoClosetRepository implements IClosetRepository {
         }
     }
 
+
     async removeItemFromCloset(closetId: string, itemId: string): Promise<ClosetDTO[]> {
+        audit({
+            timestamp: new Date().toISOString(),
+            event: 'DOCUMENT_UPDATE',
+            label: 'Closet.itemIds',
+            params: { closetId, itemId, operation: 'pull' },
+            source: 'MongoClosetRepository.removeItemFromCloset',
+        });
+        
         try {
             const numericClosetId = this.parseNumericId(closetId, "closet id");
             const numericItemId = this.parseNumericId(itemId, "item id");

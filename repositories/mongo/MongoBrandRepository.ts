@@ -3,6 +3,7 @@ import { formatClothingItem } from '../../utils/repository_utils/ObjectFormatter
 import type { IBrandRepository } from '../interfaces/IBrandRepository.js';
 import type { Brand as BrandDto } from '../../dtos/brands/Brand.dto.js';
 import type { ClothingItem } from '../../dtos/items/Item.dto.js';
+import { audit } from '../../utils/audit/AuditLogger.ts';
 
 function formatBrand(b: any, country?: any): BrandDto {
   return {
@@ -50,6 +51,14 @@ export class MongoBrandRepository implements IBrandRepository {
   }
 
   async createBrand(data: { name: string; countryCode: string }): Promise<BrandDto[]> {
+    audit({
+      timestamp: new Date().toISOString(),
+      event: 'DOCUMENT_CREATE',
+      label: 'Brand',
+      params: { name: data.name, countryCode: data.countryCode },
+      source: 'MongoBrandRepository.createBrand',
+    });
+
     try {
       const country = await Country.findOne({ countryCode: data.countryCode.toUpperCase() }).lean().exec();
       if (!country) throw new Error(`Country with code "${data.countryCode}" not found`);
@@ -64,6 +73,14 @@ export class MongoBrandRepository implements IBrandRepository {
   }
 
   async updateBrand(name: string, newName: string): Promise<BrandDto[]> {
+    audit({
+      timestamp: new Date().toISOString(),
+      event: 'DOCUMENT_UPDATE',
+      label: 'Brand',
+      params: { name, newName },
+      source: 'MongoBrandRepository.updateBrand',
+    });
+
     try {
       const brand = await Brand.findOneAndUpdate({ name }, { name: newName }, { new: true }).lean().exec();
       if (!brand) return [];
@@ -76,6 +93,14 @@ export class MongoBrandRepository implements IBrandRepository {
   }
 
   async deleteBrand(name: string): Promise<void> {
+    audit({
+      timestamp: new Date().toISOString(),
+      event: 'DOCUMENT_DELETE',
+      label: 'Brand',
+      params: { name },
+      source: 'MongoBrandRepository.deleteBrand',
+    });
+    
     try {
       await Brand.deleteOne({ name }).exec();
     } catch (error) {

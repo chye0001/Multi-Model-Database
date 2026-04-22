@@ -5,7 +5,10 @@ export type AuditEvent =
   | 'NODE_UPDATE'
   | 'NODE_DELETE'
   | 'RELATIONSHIP_CREATE'
-  | 'RELATIONSHIP_DELETE';
+  | 'RELATIONSHIP_DELETE'
+  | 'DOCUMENT_CREATE'
+  | 'DOCUMENT_UPDATE'
+  | 'DOCUMENT_DELETE';
 
 interface AuditEntry {
   timestamp: string;

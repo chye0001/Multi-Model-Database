@@ -1,5 +1,6 @@
 import { User, Closet, Outfit, Role, Country } from "../../database/mongo/models/index.js";
 import { formatUser, formatUserCloset, formatUserOutfit, formatUserReview } from "../../utils/repository_utils/ObjectFormatters.js";
+import { audit } from "../../utils/audit/AuditLogger.js";
 import type { IUserRepository } from '../interfaces/IUserRepository.js';
 import type { CreateUserRequest, UpdateUserRequest, User as UserDto } from "../../dtos/users/User.dto.js";
 import type { Closet as ClosetDto } from "../../dtos/closets/Closet.dto.js";
@@ -38,18 +39,19 @@ export class MongoUserRepository implements IUserRepository {
     }
 
     async createUser(data: CreateUserRequest): Promise<UserDto[]> {
-        try {
-            const defaultUserRole = {
-                id: 2,
-                name: "user"
-            };
+        audit({
+            timestamp: new Date().toISOString(),
+            event: 'DOCUMENT_CREATE',
+            label: 'User',
+            params: { id: data.id, email: data.email, firstName: data.firstName, lastName: data.lastName, countryId: data.countryId },
+            source: 'MongoUserRepository.createUser',
+        });
 
-            // Country is now an embedded snapshot — fetch from Countries collection
-            // to build the snapshot, then store inline on the User document
+        try {
+            const defaultUserRole = { id: 2, name: "user" };
+
             const country = await Country.findOne({ id: data.countryId }).lean().exec();
-            if (!country) {
-                throw new Error(`Country with id ${data.countryId} not found`);
-            }
+            if (!country) throw new Error(`Country with id ${data.countryId} not found`);
 
             const newUser = new User({
                 id:        data.id,
@@ -67,7 +69,6 @@ export class MongoUserRepository implements IUserRepository {
 
             const savedUser = await newUser.save();
             return this.getUserById(savedUser.id);
-
         } catch (error) {
             console.error("Error creating user in MongoDB:", error);
             throw new Error("Failed to create user in MongoDB");
@@ -75,6 +76,14 @@ export class MongoUserRepository implements IUserRepository {
     }
 
     async updateUser(id: string, data: UpdateUserRequest): Promise<UserDto[]> {
+        audit({
+            timestamp: new Date().toISOString(),
+            event: 'DOCUMENT_UPDATE',
+            label: 'User',
+            params: { id, ...data },
+            source: 'MongoUserRepository.updateUser',
+        });
+
         try {
             if (!data.firstName || !data.lastName || !data.countryId) {
                 throw new Error(`Missing required data to update. Data received: ${JSON.stringify(data)}`);
@@ -111,6 +120,14 @@ export class MongoUserRepository implements IUserRepository {
     }
 
     async deleteUser(id: string): Promise<void> {
+        audit({
+            timestamp: new Date().toISOString(),
+            event: 'DOCUMENT_DELETE',
+            label: 'User',
+            params: { id },
+            source: 'MongoUserRepository.deleteUser',
+        });
+
         try {
             const result = await User.deleteOne({ id }).exec();
             if (result.deletedCount === 0) {
@@ -123,6 +140,14 @@ export class MongoUserRepository implements IUserRepository {
     }
 
     async assignRole(userEmail: string, roleName: string): Promise<UserDto[]> {
+        audit({
+            timestamp: new Date().toISOString(),
+            event: 'DOCUMENT_UPDATE',
+            label: 'User.role',
+            params: { userEmail, roleName },
+            source: 'MongoUserRepository.assignRole',
+        });
+
         try {
             const role = await Role.findOne({ name: roleName }).lean().exec();
             if (!role) throw new Error(`Role "${roleName}" not found`);
