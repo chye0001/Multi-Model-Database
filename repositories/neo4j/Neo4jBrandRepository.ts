@@ -3,6 +3,7 @@ import { neogma } from '../../database/neo4j/neogma-client.js';
 import type { IBrandRepository } from '../interfaces/IBrandRepository.js';
 import type { Brand } from '../../dtos/brands/Brand.dto.js';
 import type { ClothingItem } from '../../dtos/items/Item.dto.js';
+import { audit } from '../../utils/audit/AuditLogger.ts';
 
 function formatBrand(b: any, c: any): Brand {
   return {
@@ -49,6 +50,13 @@ export class Neo4jBrandRepository implements IBrandRepository {
   }
 
   async createBrand(data: { name: string; countryCode: string }): Promise<Brand[]> {
+    audit({
+      timestamp: new Date().toISOString(),
+      event: 'NODE_CREATE',
+      label: 'Brand',
+      params: { name: data.name, countryCode: data.countryCode },
+      source: 'Neo4jBrandRepository.createBrand',
+    });
     try {
       const countryResult = await neogma.queryRunner.run(
         `MATCH (c:Country { countryCode: $countryCode }) RETURN c`,
@@ -73,6 +81,13 @@ export class Neo4jBrandRepository implements IBrandRepository {
   }
 
   async updateBrand(name: string, newName: string): Promise<Brand[]> {
+    audit({
+      timestamp: new Date().toISOString(),
+      event: 'NODE_UPDATE',
+      label: 'Brand',
+      params: { name, newName },
+      source: 'Neo4jBrandRepository.updateBrand',
+    });
     try {
       const result = await neogma.queryRunner.run(
         `MATCH (b:Brand { name: $name }) OPTIONAL MATCH (b)-[:IS_FROM]->(c:Country) SET b.name = $newName RETURN b, c`,
@@ -89,6 +104,13 @@ export class Neo4jBrandRepository implements IBrandRepository {
   }
 
   async deleteBrand(name: string): Promise<void> {
+    audit({
+      timestamp: new Date().toISOString(),
+      event: 'NODE_DELETE',
+      label: 'Brand',
+      params: { name },
+      source: 'Neo4jBrandRepository.deleteBrand',
+    });
     try {
       await neogma.queryRunner.run(
         `MATCH (b:Brand { name: $name }) DETACH DELETE b`,
@@ -122,7 +144,6 @@ export class Neo4jBrandRepository implements IBrandRepository {
         const images = record.get('images')
           .filter((img: any) => img !== null)
           .map((img: any) => ({ id: img.properties.id, url: img.properties.url }));
-
         return {
           id: Number(i.id),
           name: i.name,

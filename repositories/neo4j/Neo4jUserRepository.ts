@@ -12,6 +12,7 @@ import { format } from 'node:path';
 import type { Closet } from '../../dtos/closets/Closet.dto.js';
 import type { Outfit } from '../../dtos/outfits/Outfit.dto.js';
 import type { Review } from '../../dtos/reviews/Review.dto.js';
+import { audit } from '../../utils/audit/AuditLogger.ts';
 
 
 export class Neo4jUserRepository implements IUserRepository {
@@ -60,6 +61,13 @@ export class Neo4jUserRepository implements IUserRepository {
     }
 
     async createUser(data: Partial<CreateUserRequest>): Promise<User[]> {
+        audit({
+            timestamp: new Date().toISOString(),
+            event: 'NODE_CREATE',
+            label: 'User',
+            params: { id: data.id, email: data.email, firstName: data.firstName, lastName: data.lastName, countryId: data.countryId },
+            source: 'Neo4jUserRepository.createUser',
+        });
         const result = await neogma.queryRunner.run(`
             MATCH (c:Country {id: $countryId})
             MATCH (r:Role {name: "user"})
@@ -75,25 +83,30 @@ export class Neo4jUserRepository implements IUserRepository {
             CREATE (u)-[:HAS]->(r)
             RETURN u, r, c
         `, {
-            id:          data.id,
-            email:       data.email,
-            password:    data.password,
-            firstName:   data.firstName,
-            lastName:    data.lastName,
-            createdAt:   new Date().toISOString(),
-            countryId:   data.countryId,
+            id:        data.id,
+            email:     data.email,
+            password:  data.password,
+            firstName: data.firstName,
+            lastName:  data.lastName,
+            createdAt: new Date().toISOString(),
+            countryId: data.countryId,
         });
-
         return result.records.map((record) => formatUser(record, "neo4j"));
     }
 
     async updateUser(id: string, data: UpdateUserRequest): Promise<any[]> {
+        audit({
+            timestamp: new Date().toISOString(),
+            event: 'NODE_UPDATE',
+            label: 'User',
+            params: { id, firstName: data.firstName, lastName: data.lastName, countryId: data.countryId },
+            source: 'Neo4jUserRepository.updateUser',
+        });
         try {
             if (!id) throw new Error("Missing required user id.");
             if (!data.firstName || !data.lastName || !data.countryId) {
                 throw new Error(`Missing required data to update. Data received: ${JSON.stringify(data)}`);
             }
-
             const result = await neogma.queryRunner.run(`
                 MATCH (u:User {id: $userId})
                 MATCH (c:Country {id: $countryId})
@@ -112,13 +125,10 @@ export class Neo4jUserRepository implements IUserRepository {
                     countryId: data.countryId,
                 }
             );
-
             if (result.records.length === 0) {
                 throw new Error(`User with id ${id} or country with id ${data.countryId} not found`);
             }
-
             return result.records.map(record => formatUser(record, "Neo4j"));
-
         } catch (error) {
             console.error(`Unexpected error, could not update user with id: ${id}`, error);
             throw new Error(`Failed to update user with id ${id}, unexpected error`);
@@ -126,23 +136,23 @@ export class Neo4jUserRepository implements IUserRepository {
     }
 
     async deleteUser(id: string): Promise<void> {
+        audit({
+            timestamp: new Date().toISOString(),
+            event: 'NODE_DELETE',
+            label: 'User',
+            params: { id },
+            source: 'Neo4jUserRepository.deleteUser',
+        });
         try {
             if (!id) throw new Error("Missing required user id.");
-
             const result = await neogma.queryRunner.run(`
                 MATCH (u:User {id: $userId})
                 DETACH DELETE u
                 RETURN count(u) AS deleted
-                `, {
-                    userId: id,
-                }
+                `, { userId: id }
             );
-
             const deleted = result.records[0]?.get("deleted").toNumber();
-            if (deleted === 0) {
-                throw new Error(`User with id ${id} not found`);
-            }
-
+            if (deleted === 0) throw new Error(`User with id ${id} not found`);
         } catch (error) {
             console.error(`Unexpected error, could not delete user with id: ${id}`, error);
             throw new Error(`Failed to delete user with id ${id}, unexpected error`);
@@ -152,6 +162,13 @@ export class Neo4jUserRepository implements IUserRepository {
 
 
     async assignRole(userEmail: string, roleName: string): Promise<any[]> {
+        audit({
+            timestamp: new Date().toISOString(),
+            event: 'RELATIONSHIP_CREATE',
+            label: 'User-[:HAS]->Role',
+            params: { userEmail, roleName },
+            source: 'Neo4jUserRepository.assignRole',
+        });
         try {
             await neogma.queryRunner.run(`
                 MATCH (u:User { email: $userEmail })-[rel:HAS]->(old:Role)

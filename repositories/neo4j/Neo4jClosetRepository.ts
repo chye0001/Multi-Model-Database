@@ -4,6 +4,7 @@ import { formatUserCloset } from "../../utils/repository_utils/ObjectFormatters.
 import type { IClosetRepository } from "../interfaces/IClosetRepository.js";
 import type { Closet as ClosetDTO } from "../../dtos/closets/Closet.dto.js";
 import type { ClothingItem } from "../../dtos/items/Item.dto.js";
+import { audit } from "../../utils/audit/AuditLogger.ts";
 
 export class Neo4jClosetRepository implements IClosetRepository {
     async getAllClosets(): Promise<ClosetDTO[]> {
@@ -74,11 +75,17 @@ export class Neo4jClosetRepository implements IClosetRepository {
     }
 
     async createCloset(data: { name: string; description?: string; isPublic: boolean; userId: string }): Promise<ClosetDTO[]> {
+        audit({
+            timestamp: new Date().toISOString(),
+            event: 'NODE_CREATE',
+            label: 'Closet',
+            params: { name: data.name, isPublic: data.isPublic, userId: data.userId },
+            source: 'Neo4jClosetRepository.createCloset',
+        });
         try {
             const maxResult = await neogma.queryRunner.run(
                 `MATCH (cl:Closet) RETURN coalesce(max(cl.id), 0) AS maxId`
             );
-
             const rawMax = maxResult.records[0]?.get("maxId");
             const maxId = this.toNumber(rawMax);
             const nextId = maxId + 1;
@@ -104,7 +111,6 @@ export class Neo4jClosetRepository implements IClosetRepository {
                     createdAt,
                 }
             );
-
             return await this.getClosetById(String(nextId));
         } catch (error) {
             console.error("Error creating closet in Neo4j:", error);
@@ -112,21 +118,26 @@ export class Neo4jClosetRepository implements IClosetRepository {
         }
     }
 
+
     async updateCloset(id: string, data: Partial<{ name: string; description: string; isPublic: boolean }>): Promise<ClosetDTO[]> {
+        audit({
+            timestamp: new Date().toISOString(),
+            event: 'NODE_UPDATE',
+            label: 'Closet',
+            params: { id, ...data },
+            source: 'Neo4jClosetRepository.updateCloset',
+        });
         try {
             const numericId = this.parseNumericId(id, "closet id");
             const patch: Partial<{ name: string; description: string; isPublic: boolean }> = {};
-
             if (typeof data.name === "string") patch.name = data.name;
             if (typeof data.description === "string") patch.description = data.description;
             if (typeof data.isPublic === "boolean") patch.isPublic = data.isPublic;
 
             await neogma.queryRunner.run(
-                `MATCH (cl:Closet { id: $id })
-                 SET cl += $patch`,
+                `MATCH (cl:Closet { id: $id }) SET cl += $patch`,
                 { id: numericId, patch }
             );
-
             return await this.getClosetById(id);
         } catch (error) {
             console.error(`Error updating closet ${id} in Neo4j:`, error);
@@ -135,12 +146,17 @@ export class Neo4jClosetRepository implements IClosetRepository {
     }
 
     async deleteCloset(id: string): Promise<void> {
+        audit({
+            timestamp: new Date().toISOString(),
+            event: 'NODE_DELETE',
+            label: 'Closet',
+            params: { id },
+            source: 'Neo4jClosetRepository.deleteCloset',
+        });
         try {
             const numericId = this.parseNumericId(id, "closet id");
-
             await neogma.queryRunner.run(
-                `MATCH (cl:Closet { id: $id })
-                 DETACH DELETE cl`,
+                `MATCH (cl:Closet { id: $id }) DETACH DELETE cl`,
                 { id: numericId }
             );
         } catch (error) {
@@ -148,6 +164,7 @@ export class Neo4jClosetRepository implements IClosetRepository {
             throw new Error("Failed to delete closet from Neo4j");
         }
     }
+
 
     async getClosetItems(id: string): Promise<ClothingItem[]> {
         try {
@@ -203,17 +220,22 @@ export class Neo4jClosetRepository implements IClosetRepository {
     }
 
     async addItemToCloset(closetId: string, itemId: string): Promise<ClosetDTO[]> {
+        audit({
+            timestamp: new Date().toISOString(),
+            event: 'RELATIONSHIP_CREATE',
+            label: 'Closet-[:STORES]->Item',
+            params: { closetId, itemId },
+            source: 'Neo4jClosetRepository.addItemToCloset',
+        });
         try {
             const numericClosetId = this.parseNumericId(closetId, "closet id");
             const numericItemId = this.parseNumericId(itemId, "item id");
-
             await neogma.queryRunner.run(
                 `MATCH (cl:Closet { id: $closetId })
                  MATCH (i:Item { id: $itemId })
                  MERGE (cl)-[:STORES]->(i)`,
                 { closetId: numericClosetId, itemId: numericItemId }
             );
-
             return await this.getClosetById(closetId);
         } catch (error) {
             console.error(`Error adding item ${itemId} to closet ${closetId} in Neo4j:`, error);
@@ -222,16 +244,20 @@ export class Neo4jClosetRepository implements IClosetRepository {
     }
 
     async removeItemFromCloset(closetId: string, itemId: string): Promise<ClosetDTO[]> {
+        audit({
+            timestamp: new Date().toISOString(),
+            event: 'RELATIONSHIP_DELETE',
+            label: 'Closet-[:STORES]->Item',
+            params: { closetId, itemId },
+            source: 'Neo4jClosetRepository.removeItemFromCloset',
+        });
         try {
             const numericClosetId = this.parseNumericId(closetId, "closet id");
             const numericItemId = this.parseNumericId(itemId, "item id");
-
             await neogma.queryRunner.run(
-                `MATCH (cl:Closet { id: $closetId })-[rel:STORES]->(i:Item { id: $itemId })
-                 DELETE rel`,
+                `MATCH (cl:Closet { id: $closetId })-[rel:STORES]->(i:Item { id: $itemId }) DELETE rel`,
                 { closetId: numericClosetId, itemId: numericItemId }
             );
-
             return await this.getClosetById(closetId);
         } catch (error) {
             console.error(`Error removing item ${itemId} from closet ${closetId} in Neo4j:`, error);
