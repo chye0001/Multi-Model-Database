@@ -3,6 +3,7 @@ import { formatClothingItem } from '../../utils/repository_utils/ObjectFormatter
 import type { IBrandRepository } from '../interfaces/IBrandRepository.js';
 import type { Brand } from '../../dtos/brands/Brand.dto.js';
 import type { ClothingItem } from '../../dtos/items/Item.dto.js';
+import { audit } from '../../utils/audit/AuditLogger.ts';
 
 function formatBrand(b: any): Brand {
   return {
@@ -42,6 +43,14 @@ export class PostgresBrandRepository implements IBrandRepository {
   }
 
   async createBrand(data: { name: string; countryCode: string }): Promise<Brand[]> {
+    audit({
+      timestamp: new Date().toISOString(),
+      event: 'ROW_INSERT',
+      label: 'brands',
+      params: { name: data.name, countryCode: data.countryCode },
+      source: 'PostgresBrandRepository.createBrand',
+    });
+
     try {
       const country = await prisma.country.findFirst({ where: { countryCode: data.countryCode } });
       if (!country) throw new Error(`Country with code "${data.countryCode}" not found`);
@@ -57,6 +66,14 @@ export class PostgresBrandRepository implements IBrandRepository {
   }
 
   async updateBrand(name: string, newName: string): Promise<Brand[]> {
+    audit({
+      timestamp: new Date().toISOString(),
+      event: 'ROW_UPDATE',
+      label: 'brands',
+      params: { name, newName },
+      source: 'PostgresBrandRepository.updateBrand',
+    });
+
     try {
       const existing = await prisma.brand.findFirst({ where: { name } });
       if (!existing) return [];
@@ -73,6 +90,14 @@ export class PostgresBrandRepository implements IBrandRepository {
   }
 
   async deleteBrand(name: string): Promise<void> {
+    audit({
+      timestamp: new Date().toISOString(),
+      event: 'ROW_DELETE',
+      label: 'brands',
+      params: { name },
+      source: 'PostgresBrandRepository.deleteBrand',
+    });
+    
     try {
       const existing = await prisma.brand.findFirst({ where: { name } });
       if (!existing) return;

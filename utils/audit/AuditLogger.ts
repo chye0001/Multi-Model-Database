@@ -8,7 +8,10 @@ export type AuditEvent =
   | 'RELATIONSHIP_DELETE'
   | 'DOCUMENT_CREATE'
   | 'DOCUMENT_UPDATE'
-  | 'DOCUMENT_DELETE';
+  | 'DOCUMENT_DELETE'
+  | 'ROW_INSERT'
+  | 'ROW_UPDATE'
+  | 'ROW_DELETE';
 
 interface AuditEntry {
   timestamp: string;

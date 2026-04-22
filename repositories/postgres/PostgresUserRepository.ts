@@ -6,6 +6,7 @@ import type { Outfit } from '../../dtos/outfits/Outfit.dto.js';
 import type { Review } from '../../dtos/reviews/Review.dto.js';
 
 import { prisma } from '../../database/postgres/prisma-client.js';
+import { audit } from '../../utils/audit/AuditLogger.ts';
 
 export class PostgresUserRepository implements IUserRepository {
 
@@ -47,6 +48,14 @@ export class PostgresUserRepository implements IUserRepository {
     }
 
     async createUser(data: CreateUserRequest): Promise<User[]> {
+        audit({
+            timestamp: new Date().toISOString(),
+            event: 'ROW_INSERT',
+            label: 'users',
+            params: { id: data.id, email: data.email, firstName: data.firstName, lastName: data.lastName, countryId: data.countryId },
+            source: 'PostgresUserRepository.createUser',
+        });
+        
         try {
             const newUser = await prisma.user.create({
                 data: {
@@ -58,14 +67,9 @@ export class PostgresUserRepository implements IUserRepository {
                     roleId:    2,
                     countryId: data.countryId
                 },
-                include: {
-                    role:    true,
-                    country: true
-                }
+                include: { role: true, country: true }
             });
-
             return [formatUser(newUser, "PostgreSQL")];
-
         } catch (error) {
             console.error("Error creating user in PostgreSQL:", error);
             throw new Error("Failed to create user in PostgreSQL");
@@ -73,11 +77,18 @@ export class PostgresUserRepository implements IUserRepository {
     }
 
     async updateUser(id: string, data: UpdateUserRequest): Promise<User[]> {
+        audit({
+            timestamp: new Date().toISOString(),
+            event: 'ROW_UPDATE',
+            label: 'users',
+            params: { id, firstName: data.firstName, lastName: data.lastName, countryId: data.countryId },
+            source: 'PostgresUserRepository.updateUser',
+        });
+        
         try {
             if (!data.firstName || !data.lastName || !data.countryId) {
                 throw new Error(`Missing required data to update. Data received: ${JSON.stringify(data)}`);
             }
-
             const updatedUser = await prisma.user.update({
                 where: { id },
                 data: {
@@ -85,21 +96,25 @@ export class PostgresUserRepository implements IUserRepository {
                     lastName:  data.lastName,
                     countryId: data.countryId
                 },
-                include: {
-                    role:    true,
-                    country: true
-                }
+                include: { role: true, country: true }
             });
-
             return [formatUser(updatedUser, "PostgreSQL")];
-
         } catch (error) {
             console.error("Error updating user in PostgreSQL:", error);
             throw new Error(`Failed to update user with id ${id} in PostgreSQL`);
         }
     }
 
+
     async deleteUser(id: string): Promise<void> {
+        audit({
+            timestamp: new Date().toISOString(),
+            event: 'ROW_DELETE',
+            label: 'users',
+            params: { id },
+            source: 'PostgresUserRepository.deleteUser',
+        });
+
         try {
             await prisma.user.delete({ where: { id } });
 
@@ -110,15 +125,21 @@ export class PostgresUserRepository implements IUserRepository {
     }
 
     async assignRole(userEmail: string, roleName: string): Promise<User[]> {
+        audit({
+            timestamp: new Date().toISOString(),
+            event: 'ROW_UPDATE',
+            label: 'users.roleId',
+            params: { userEmail, roleName },
+            source: 'PostgresUserRepository.assignRole',
+        });
+        
         try {
             const updated = await prisma.user.update({
                 where: { email: userEmail },
                 data:  { role: { connect: { role: roleName } } },
                 include: { role: true, country: true },
             });
-
             return [formatUser(updated, "PostgreSQL")];
-
         } catch (error) {
             console.error(`Error assigning role to user ${userEmail} in PostgreSQL:`, error);
             throw new Error("Failed to assign role in PostgreSQL");

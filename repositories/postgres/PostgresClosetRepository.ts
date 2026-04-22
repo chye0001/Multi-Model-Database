@@ -4,6 +4,7 @@ import { formatUserCloset, formatClothingItem } from "../../utils/repository_uti
 import type { IClosetRepository } from "../interfaces/IClosetRepository.js";
 import type { Closet } from "../../dtos/closets/Closet.dto.js";
 import type { ClothingItem } from "../../dtos/items/Item.dto.js";
+import { audit } from "../../utils/audit/AuditLogger.ts";
 
 const closetInclude = {
     closetItem: {
@@ -59,7 +60,14 @@ export class PostgresClosetRepository implements IClosetRepository {
         }
     }
 
-    async createCloset(data: { name: string; description?: string; isPublic: boolean; userId: string }): Promise<Closet[]> {
+     async createCloset(data: { name: string; description?: string; isPublic: boolean; userId: string }): Promise<Closet[]> {
+        audit({
+            timestamp: new Date().toISOString(),
+            event: 'ROW_INSERT',
+            label: 'closets',
+            params: { name: data.name, isPublic: data.isPublic, userId: data.userId },
+            source: 'PostgresClosetRepository.createCloset',
+        });
         try {
             const closet = await prisma.closet.create({
                 data: {
@@ -78,6 +86,14 @@ export class PostgresClosetRepository implements IClosetRepository {
     }
 
     async updateCloset(id: string, data: Partial<{ name: string; description: string; isPublic: boolean }>): Promise<Closet[]> {
+        audit({
+            timestamp: new Date().toISOString(),
+            event: 'ROW_UPDATE',
+            label: 'closets',
+            params: { id, ...data },
+            source: 'PostgresClosetRepository.updateCloset',
+        });
+        
         try {
             const numericId = BigInt(id);
             const patch: Partial<{ name: string; description: string | null; isPublic: boolean }> = {};
@@ -98,12 +114,18 @@ export class PostgresClosetRepository implements IClosetRepository {
         }
     }
 
-    async deleteCloset(id: string): Promise<void> {
+     async deleteCloset(id: string): Promise<void> {
+        audit({
+            timestamp: new Date().toISOString(),
+            event: 'ROW_DELETE',
+            label: 'closets',
+            params: { id },
+            source: 'PostgresClosetRepository.deleteCloset',
+        });
+
         try {
             const numericId = BigInt(id);
-            await prisma.closet.delete({
-                where: { id: numericId },
-            });
+            await prisma.closet.delete({ where: { id: numericId } });
         } catch (error) {
             console.error(`Error deleting closet ${id} from PostgreSQL:`, error);
             throw new Error("Failed to delete closet from PostgreSQL");
@@ -141,26 +163,25 @@ export class PostgresClosetRepository implements IClosetRepository {
     }
 
     async addItemToCloset(closetId: string, itemId: string): Promise<Closet[]> {
+        audit({
+            timestamp: new Date().toISOString(),
+            event: 'ROW_INSERT',
+            label: 'closet_items',
+            params: { closetId, itemId },
+            source: 'PostgresClosetRepository.addItemToCloset',
+        });
+
         try {
             const numericClosetId = BigInt(closetId);
             const numericItemId = BigInt(itemId);
 
-            // Check if item already in closet
             const existing = await prisma.closetItem.findUnique({
-                where: {
-                    itemId_closetId: {
-                        itemId: numericItemId,
-                        closetId: numericClosetId,
-                    },
-                },
+                where: { itemId_closetId: { itemId: numericItemId, closetId: numericClosetId } },
             });
 
             if (!existing) {
                 await prisma.closetItem.create({
-                    data: {
-                        itemId: numericItemId,
-                        closetId: numericClosetId,
-                    },
+                    data: { itemId: numericItemId, closetId: numericClosetId },
                 });
             }
 
@@ -178,17 +199,20 @@ export class PostgresClosetRepository implements IClosetRepository {
     }
 
     async removeItemFromCloset(closetId: string, itemId: string): Promise<Closet[]> {
+        audit({
+            timestamp: new Date().toISOString(),
+            event: 'ROW_DELETE',
+            label: 'closet_items',
+            params: { closetId, itemId },
+            source: 'PostgresClosetRepository.removeItemFromCloset',
+        });
+        
         try {
             const numericClosetId = BigInt(closetId);
             const numericItemId = BigInt(itemId);
 
             await prisma.closetItem.delete({
-                where: {
-                    itemId_closetId: {
-                        itemId: numericItemId,
-                        closetId: numericClosetId,
-                    },
-                },
+                where: { itemId_closetId: { itemId: numericItemId, closetId: numericClosetId } },
             });
 
             const closet = await prisma.closet.findUnique({
