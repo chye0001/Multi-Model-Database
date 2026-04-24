@@ -4,6 +4,7 @@ import { formatUserOutfit } from "../../utils/repository_utils/ObjectFormatters.
 import type { IOutfitRepository } from "../interfaces/IOutfitRepository.js";
 import type { Outfit } from "../../dtos/outfits/Outfit.dto.js";
 import type { ClothingItem } from "../../dtos/items/Item.dto.js";
+import type { OutfitOverview } from "../../dtos/outfits/OutfitOverview.dto.js";
 
 export class Neo4jOutfitRepository implements IOutfitRepository {
     async getAllOutfits(style?: string): Promise<Outfit[]> {
@@ -346,5 +347,37 @@ export class Neo4jOutfitRepository implements IOutfitRepository {
         }
         const n = Number(value ?? 0);
         return Number.isFinite(n) ? n : 0;
+    }
+    async getOutfitOverview(style?: string): Promise<OutfitOverview[]> {
+        try {
+            const result = await neogma.queryRunner.run(
+                `MATCH (u:User)-[rel:CREATES]->(o:Outfit)
+       WHERE $style IS NULL OR o.style = $style
+       OPTIONAL MATCH (o)-[:CONTAINS]->(i:Item)
+       RETURN o.id AS id,
+              o.name AS name,
+              o.style AS style,
+              coalesce(rel.dateAdded, o.dateAdded) AS dateAdded,
+              u.firstName AS firstName,
+              u.lastName AS lastName,
+              count(DISTINCT i) AS itemCount
+       ORDER BY dateAdded DESC`,
+                { style: style ?? null }
+            );
+
+            return result.records.map((record) => ({
+                id: this.toNumber(record.get("id")),
+                name: String(record.get("name") ?? ""),
+                style: String(record.get("style") ?? ""),
+                dateAdded: String(record.get("dateAdded") ?? ""),
+                firstName: String(record.get("firstName") ?? ""),
+                lastName: String(record.get("lastName") ?? ""),
+                itemCount: this.toNumber(record.get("itemCount")),
+                fromDatabase: "neo4j",
+            }));
+        } catch (error) {
+            console.error("Error fetching outfit overview from Neo4j:", error);
+            throw new Error("Failed to fetch outfit overview from Neo4j");
+        }
     }
 }

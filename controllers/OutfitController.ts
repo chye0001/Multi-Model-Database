@@ -130,4 +130,15 @@ export class OutfitController {
             res.status(500).send({ error: error?.message ?? "Internal Server Error" });
         }
     };
+
+    getOutfitOverview = async (req: Request, res: Response) => {
+        try {
+            const style = req.query.style as string | undefined;
+            const overview = await this.outfitService.getOutfitOverview(style);
+            res.send(overview);
+        } catch (error: any) {
+            res.status(500).send({ error: error?.message ?? "Internal Server Error" });
+        }
+    };
+
 }

@@ -4,6 +4,7 @@ import { formatUserOutfit } from "../../utils/repository_utils/ObjectFormatters.
 import type { Outfit as OutfitDto } from "../../dtos/outfits/Outfit.dto.js";
 import type { ClothingItem } from "../../dtos/items/Item.dto.js";
 import type { IOutfitRepository } from "../interfaces/IOutfitRepository.js";
+import type { OutfitOverview } from "../../dtos/outfits/OutfitOverview.dto.js";
 
 type CreateOutfitRequest = {
     name: string;
@@ -196,5 +197,25 @@ export class MongoOutfitRepository implements IOutfitRepository {
                 }))
                 : [],
         };
+    }
+    async getOutfitOverview(style?: string): Promise<OutfitOverview[]> {
+        try {
+            const query = style ? { style } : {};
+            const outfits = await Outfit.find(query).lean().exec();
+
+            return outfits.map((o: any) => ({
+                id: Number(o.id),
+                name: o.name,
+                style: o.style,
+                dateAdded: o.dateAdded,
+                firstName: o.createdBy?.firstName ?? "",
+                lastName: o.createdBy?.lastName ?? "",
+                itemCount: Array.isArray(o.items) ? o.items.length : 0,
+                fromDatabase: "mongodb",
+            }));
+        } catch (error) {
+            console.error("Error fetching outfit overview from MongoDB:", error);
+            throw new Error("Failed to fetch outfit overview from MongoDB");
+        }
     }
 }

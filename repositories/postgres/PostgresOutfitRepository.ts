@@ -4,6 +4,7 @@ import { formatUserOutfit } from "../../utils/repository_utils/ObjectFormatters.
 import type { IOutfitRepository } from "../interfaces/IOutfitRepository.js";
 import type { Outfit } from "../../dtos/outfits/Outfit.dto.js";
 import type { ClothingItem } from "../../dtos/items/Item.dto.js";
+import type { OutfitOverview } from "../../dtos/outfits/OutfitOverview.dto.js";
 
 const outfitInclude = {
     user: true,
@@ -208,4 +209,47 @@ export class PostgresOutfitRepository implements IOutfitRepository {
         }
         return BigInt(parsed);
     }
+
+    async getOutfitOverview(style?: string): Promise<OutfitOverview[]> {
+        try {
+            type Row = {
+                id: bigint;
+                name: string;
+                style: string;
+                dateAdded: Date;
+                firstName: string;
+                lastName: string;
+                itemCount: bigint;
+            };
+
+            const rows = await prisma.$queryRaw<Row[]>`
+      SELECT
+        id,
+        name,
+        style,
+        "dateAdded" AS "dateAdded",
+        "firstName" AS "firstName",
+        "lastName" AS "lastName",
+        item_count::bigint AS "itemCount"
+      FROM outfit_overview
+      WHERE ${style ?? null}::text IS NULL OR style = ${style ?? null}
+      ORDER BY "dateAdded" DESC
+    `;
+
+            return rows.map((r) => ({
+                id: Number(r.id),
+                name: r.name,
+                style: r.style,
+                dateAdded: r.dateAdded,
+                firstName: r.firstName,
+                lastName: r.lastName,
+                itemCount: Number(r.itemCount),
+                fromDatabase: "postgresql",
+            }));
+        } catch (error) {
+            console.error("Error fetching outfit overview from PostgreSQL:", error);
+            throw new Error("Failed to fetch outfit overview from PostgreSQL");
+        }
+    }
+
 }

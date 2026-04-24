@@ -1,6 +1,7 @@
 import type { IOutfitRepository } from "../repositories/interfaces/IOutfitRepository.js";
 import type { Outfit } from "../dtos/outfits/Outfit.dto.js";
 import type { ClothingItem } from "../dtos/items/Item.dto.js";
+import type { OutfitOverview } from "../dtos/outfits/OutfitOverview.dto.js";
 
 export class OutfitService {
     constructor(private outfitRepository: IOutfitRepository) {}
@@ -39,5 +40,9 @@ export class OutfitService {
 
     async getAllOutfitsByUserId(userId: string): Promise<Outfit[]> {
         return await this.outfitRepository.getAllOutfitsByUserId(userId);
+    }
+
+    async getOutfitOverview(style?: string): Promise<OutfitOverview[]> {
+        return await this.outfitRepository.getOutfitOverview(style);
     }
 }

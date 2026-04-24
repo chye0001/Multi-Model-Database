@@ -1,5 +1,6 @@
 import type { Outfit } from "../../dtos/outfits/Outfit.dto.js";
 import type { ClothingItem } from "../../dtos/items/Item.dto.js";
+import type { OutfitOverview } from "../../dtos/outfits/OutfitOverview.dto.js";
 
 export interface IOutfitRepository {
     getAllOutfits(style?: string): Promise<Outfit[]>;
@@ -13,4 +14,5 @@ export interface IOutfitRepository {
     removeItemFromOutfit(id: string, itemId: string): Promise<Outfit[]>;
 
     getAllOutfitsByUserId(userId: string): Promise<Outfit[]>;
+    getOutfitOverview(style?: string): Promise<OutfitOverview[]>;
 }

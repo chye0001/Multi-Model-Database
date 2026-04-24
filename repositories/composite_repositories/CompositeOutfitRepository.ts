@@ -2,6 +2,7 @@ import { isRepositoriesEnabled } from "../../utils/repository_utils/ErrorHandlin
 import type { IOutfitRepository } from "../interfaces/IOutfitRepository.js";
 import type { Outfit } from "../../dtos/outfits/Outfit.dto.js";
 import type { ClothingItem } from "../../dtos/items/Item.dto.js";
+import type { OutfitOverview } from "../../dtos/outfits/OutfitOverview.dto.js";
 
 export class CompositeOutfitRepository implements IOutfitRepository {
     constructor(private enabledRepos: IOutfitRepository[]) {}
@@ -102,5 +103,12 @@ export class CompositeOutfitRepository implements IOutfitRepository {
             console.error(`Error fetching outfits for user ${userId} from repositories:`, error);
             throw error;
         }
+    }
+    async getOutfitOverview(style?: string): Promise<OutfitOverview[]> {
+        isRepositoriesEnabled(this.enabledRepos);
+        const results = await Promise.all(
+            this.enabledRepos.map((repo) => repo.getOutfitOverview(style))
+        );
+        return results.flat();
     }
 }
