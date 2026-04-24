@@ -42,9 +42,13 @@ app.use("/items", itemsRouter);
 const port = 3001;
 app.listen(port, () => {
   console.log(`Server is running on port: ${port}`);
+  const env = process.env.NODE_ENV;
+  const isMongoEnabled = process.env[`MONGO_ENABLED_${env}`] === "true";
+  const isNeo4jEnabled = process.env[`NEO4J_ENABLED_${env}`] === "true";
+
   // prisma client doesn't require explicit connect/disconnect, but we do need to manage connections for MongoDB and Neo4j
-  connectMongo();
-  connectNeo4j();
+  if (isMongoEnabled) connectMongo();
+  if (isNeo4jEnabled) connectNeo4j();
 });
 
 app.get("/healthcheck", (req, res) => {
