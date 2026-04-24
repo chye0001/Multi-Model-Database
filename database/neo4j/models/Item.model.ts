@@ -87,7 +87,7 @@ function buildItemModel() {
         },
         price: {
           type: "number",
-          minimum: 0, // price should never be negative
+          minimum: 0,
           required: false,
         },
       },
