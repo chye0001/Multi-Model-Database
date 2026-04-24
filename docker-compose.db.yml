@@ -11,8 +11,8 @@ services:
     ports:
       - ${POSTGRES_PORT_DEV}:5432
     environment:
-      POSTGRES_USER: ${POSTGRES_USER_DEV}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD_DEV}
+      POSTGRES_USER: ${POSTGRES_ROOT_USER_DEV}
+      POSTGRES_PASSWORD: ${POSTGRES_ROOT_PASSWORD_DEV}
       POSTGRES_DB: ${POSTGRES_DB_DEV}
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
