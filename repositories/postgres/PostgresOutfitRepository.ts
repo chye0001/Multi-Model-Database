@@ -4,6 +4,7 @@ import { formatUserOutfit } from "../../utils/repository_utils/ObjectFormatters.
 import type { IOutfitRepository } from "../interfaces/IOutfitRepository.js";
 import type { Outfit } from "../../dtos/outfits/Outfit.dto.js";
 import type { ClothingItem } from "../../dtos/items/Item.dto.js";
+import type { OutfitOverview } from "../../dtos/outfits/OutfitOverview.dto.js";
 
 const outfitInclude = {
     user: true,
@@ -68,17 +69,41 @@ export class PostgresOutfitRepository implements IOutfitRepository {
 
     async createOutfit(data: { name: string; style: string; createdBy: string }): Promise<Outfit[]> {
         try {
-            const outfit = await prisma.outfit.create({
-                data: {
-                    name: data.name,
-                    style: data.style,
-                    createdBy: data.createdBy,
-                },
-                include: outfitInclude,
+            type CreatedIdRow = { id: bigint };
+
+            const created = await prisma.$transaction(async (tx) => {
+                await tx.$executeRaw`
+                CALL create_outfit(
+                    ${data.name}::text,
+                    ${data.style}::text,
+                    ${data.createdBy}::uuid
+                )
+            `;
+
+                const idRows = await tx.$queryRaw<CreatedIdRow[]>`
+                SELECT currval(pg_get_serial_sequence('outfits', 'id'))::bigint AS id
+            `;
+
+                const createdId = idRows[0]?.id;
+                if (!createdId) {
+                    throw new Error("Could not resolve inserted outfit id after CALL create_outfit");
+                }
+
+                const outfit = await tx.outfit.findUnique({
+                    where: { id: createdId },
+                    include: outfitInclude,
+                });
+
+                if (!outfit) {
+                    throw new Error(`Created outfit not found for id "${String(createdId)}"`);
+                }
+
+                return outfit;
             });
-            return [formatUserOutfit(outfit, "postgresql")];
+
+            return [formatUserOutfit(created, "postgresql")];
         } catch (error) {
-            console.error("Error creating outfit in PostgreSQL:", error);
+            console.error("Error creating outfit in PostgreSQL via procedure:", error);
             throw new Error("Failed to create outfit in PostgreSQL");
         }
     }
@@ -208,4 +233,65 @@ export class PostgresOutfitRepository implements IOutfitRepository {
         }
         return BigInt(parsed);
     }
+
+    async getOutfitOverview(style?: string): Promise<OutfitOverview[]> {
+        try {
+            type Row = {
+                id: bigint;
+                name: string;
+                style: string;
+                dateAdded: Date;
+                firstName: string;
+                lastName: string;
+                itemCount: bigint;
+            };
+
+            const rows = await prisma.$queryRaw<Row[]>`
+      SELECT
+        id,
+        name,
+        style,
+        "dateAdded" AS "dateAdded",
+        "firstName" AS "firstName",
+        "lastName" AS "lastName",
+        item_count::bigint AS "itemCount"
+      FROM outfit_overview
+      WHERE ${style ?? null}::text IS NULL OR style = ${style ?? null}
+      ORDER BY "dateAdded" DESC
+    `;
+
+            return rows.map((r) => ({
+                id: Number(r.id),
+                name: r.name,
+                style: r.style,
+                dateAdded: r.dateAdded,
+                firstName: r.firstName,
+                lastName: r.lastName,
+                itemCount: Number(r.itemCount),
+                fromDatabase: "postgresql",
+            }));
+        } catch (error) {
+            console.error("Error fetching outfit overview from PostgreSQL:", error);
+            throw new Error("Failed to fetch outfit overview from PostgreSQL");
+        }
+    }
+
+    async getOutfitPrice(id: string): Promise<number> {
+        try {
+            const numericId = this.parseBigIntId(id, "outfit id");
+
+            type Row = { calculate_outfit_price: unknown };
+
+            const result = await prisma.$queryRaw<Row[]>`
+            SELECT calculate_outfit_price(${numericId}) AS calculate_outfit_price
+        `;
+
+            const raw = result[0]?.calculate_outfit_price;
+            return typeof raw === "number" ? raw : Number(raw ?? 0);
+        } catch (error) {
+            console.error(`Error calculating outfit price ${id} in PostgreSQL:`, error);
+            throw new Error("Failed to calculate outfit price in PostgreSQL");
+        }
+    }
+
 }

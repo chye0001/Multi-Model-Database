@@ -27,9 +27,9 @@ $$ LANGUAGE plpgsql;
 
 -- Procedure: Create new outfit for a user
 CREATE OR REPLACE PROCEDURE create_outfit(
-    outfit_name TEXT,
-    outfit_style TEXT,
-    user_id UUID
+    IN outfit_name TEXT,
+    IN outfit_style TEXT,
+    IN user_id UUID
 )
 LANGUAGE plpgsql
 AS $$
