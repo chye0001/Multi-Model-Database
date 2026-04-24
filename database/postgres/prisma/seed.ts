@@ -7,7 +7,7 @@ import { prisma } from "../prisma-client.js";
 // Adjust these numbers to control how much data gets seeded
 const CONFIG = {
   users:               10,  // number of users to create
-  items:               2500,  // number of items to create
+  items:               25000,  // number of items to create
   closets:             10,  // number of closets to create (spread across users)
   outfits:             10,  // number of outfits to create
   reviews:             10,  // number of reviews (one per outfit)

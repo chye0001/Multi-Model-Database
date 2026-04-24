@@ -67,9 +67,6 @@ async function step(label: string, fn: () => Promise<void>): Promise<void> {
 async function migrate() {
   console.log("🚀  Starting migration: Postgres → MongoDB + Neo4j\n");
 
-  await connectMongo();
-  await connectNeo4j();
-
   // ── Read all data from Postgres ───────────────────────────────────────────
   // Fetch everything upfront so we make one pass over the relational DB.
   // The includes mirror the relational schema's foreign keys and join tables.
@@ -132,6 +129,23 @@ async function migrate() {
   console.log("\n──────────────────────────────────────");
   console.log("  MongoDB");
   console.log("──────────────────────────────────────");
+
+  await connectMongo();
+  
+  console.log("Syncing Mongoose indexes...");
+  await Promise.all([
+    Country.createIndexes(),
+    Category.createIndexes(),
+    Brand.createIndexes(),
+    User.createIndexes(),
+    Item.createIndexes(),
+    Closet.createIndexes(),
+    Outfit.createIndexes(),
+    Role.createIndexes(),
+  ]);
+  console.log("Indexes ready.");
+
+ 
 
   await step("Mongo: Countries", async () => {
     await Country.insertMany(
@@ -349,6 +363,8 @@ async function migrate() {
     );
   });
 
+    await disconnectMongo();
+
   // ═══════════════════════════════════════════════════════════════════════════
   // NEO4J MIGRATION
   // ═══════════════════════════════════════════════════════════════════════════
@@ -360,6 +376,8 @@ async function migrate() {
   console.log("\n──────────────────────────────────────");
   console.log("  Neo4j");
   console.log("──────────────────────────────────────");
+
+  await connectNeo4j();
 
   const RoleModel     = getRoleModel();
   const CountryModel  = getCountryModel();
@@ -626,7 +644,6 @@ async function migrate() {
   // ── Done ──────────────────────────────────────────────────────────────────
   console.log("\n🎉  Migration complete!\n");
 
-  await disconnectMongo();
   await disconnectNeo4j();
   await prisma.$disconnect();
 }
