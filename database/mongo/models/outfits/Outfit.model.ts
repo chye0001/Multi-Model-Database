@@ -64,7 +64,7 @@ const OutfitSchema = new Schema<IOutfit>(
       {
         id:    { type: Number, required: true },
         name:  { type: String, required: true },
-        price: { type: Number, default: null },
+        price: { type: Number, min: 0, default: null },
         category: {
           categoryId: { type: Number },
           name:       { type: String }
