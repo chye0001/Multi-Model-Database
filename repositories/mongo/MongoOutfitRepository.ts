@@ -218,4 +218,20 @@ export class MongoOutfitRepository implements IOutfitRepository {
             throw new Error("Failed to fetch outfit overview from MongoDB");
         }
     }
+    async getOutfitPrice(id: string): Promise<number> {
+        try {
+            const numericId = this.parseNumericId(id, "outfit id");
+
+            const outfit = await Outfit.findOne({ id: numericId }).lean().exec();
+            if (!outfit) return 0;
+
+            return (outfit.items ?? []).reduce((sum: number, item: any) => {
+                return sum + (Number(item.price) || 0);
+            }, 0);
+        } catch (error) {
+            console.error(`Error calculating outfit price for outfit ${id} in MongoDB:`, error);
+            throw new Error("Failed to calculate outfit price in MongoDB");
+        }
+    }
+
 }

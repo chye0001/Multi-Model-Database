@@ -45,4 +45,10 @@ export class OutfitService {
     async getOutfitOverview(style?: string): Promise<OutfitOverview[]> {
         return await this.outfitRepository.getOutfitOverview(style);
     }
+
+    async getOutfitPrice(id: string): Promise<number> {
+        return await this.outfitRepository.getOutfitPrice(id);
+    }
+
+
 }

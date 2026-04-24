@@ -111,4 +111,16 @@ export class CompositeOutfitRepository implements IOutfitRepository {
         );
         return results.flat();
     }
+
+    async getOutfitPrice(id: string): Promise<number> {
+        try {
+            isRepositoriesEnabled(this.enabledRepos);
+            const results = await Promise.all(this.enabledRepos.map((repo) => repo.getOutfitPrice(id)));
+            return results.find((price) => price > 0) ?? 0;
+        } catch (error) {
+            console.error(`Error calculating outfit price ${id} from repositories:`, error);
+            throw error;
+        }
+    }
+
 }

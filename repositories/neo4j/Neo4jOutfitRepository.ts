@@ -348,6 +348,7 @@ export class Neo4jOutfitRepository implements IOutfitRepository {
         const n = Number(value ?? 0);
         return Number.isFinite(n) ? n : 0;
     }
+
     async getOutfitOverview(style?: string): Promise<OutfitOverview[]> {
         try {
             const result = await neogma.queryRunner.run(
@@ -380,4 +381,23 @@ export class Neo4jOutfitRepository implements IOutfitRepository {
             throw new Error("Failed to fetch outfit overview from Neo4j");
         }
     }
+
+    async getOutfitPrice(id: string): Promise<number> {
+        try {
+            const numericId = this.parseNumericId(id, "outfit id");
+
+            const result = await neogma.queryRunner.run(
+                `MATCH (o:Outfit {id: $outfitId})-[:CONTAINS]->(i:Item)
+             RETURN coalesce(sum(coalesce(i.price, 0)), 0) AS total_price`,
+                { outfitId: numericId }
+            );
+
+            const totalPrice = result.records[0]?.get("total_price");
+            return this.toNumber(totalPrice);
+        } catch (error) {
+            console.error(`Error calculating outfit price for outfit ${id} in Neo4j:`, error);
+            throw new Error("Failed to calculate outfit price in Neo4j");
+        }
+    }
+
 }

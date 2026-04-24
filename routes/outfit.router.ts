@@ -26,6 +26,7 @@ router.delete("/:id", outfitController.deleteOutfit);
 router.get("/:id/items", outfitController.getOutfitItems);
 router.post("/:id/items", outfitController.addItemToOutfit);
 router.delete("/:id/items/:itemId", outfitController.removeItemFromOutfit);
+router.get("/:id/price", outfitController.getOutfitPrice);
 
 router.get("/:id/reviews", reviewController.getReviewsByOutfitId);
 

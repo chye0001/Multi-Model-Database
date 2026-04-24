@@ -15,4 +15,6 @@ export interface IOutfitRepository {
 
     getAllOutfitsByUserId(userId: string): Promise<Outfit[]>;
     getOutfitOverview(style?: string): Promise<OutfitOverview[]>;
+    getOutfitPrice(id: string): Promise<number>;
+
 }

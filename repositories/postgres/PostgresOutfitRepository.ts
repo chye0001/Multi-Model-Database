@@ -274,4 +274,22 @@ export class PostgresOutfitRepository implements IOutfitRepository {
         }
     }
 
+    async getOutfitPrice(id: string): Promise<number> {
+        try {
+            const numericId = this.parseBigIntId(id, "outfit id");
+
+            type Row = { calculate_outfit_price: unknown };
+
+            const result = await prisma.$queryRaw<Row[]>`
+            SELECT calculate_outfit_price(${numericId}) AS calculate_outfit_price
+        `;
+
+            const raw = result[0]?.calculate_outfit_price;
+            return typeof raw === "number" ? raw : Number(raw ?? 0);
+        } catch (error) {
+            console.error(`Error calculating outfit price ${id} in PostgreSQL:`, error);
+            throw new Error("Failed to calculate outfit price in PostgreSQL");
+        }
+    }
+
 }
