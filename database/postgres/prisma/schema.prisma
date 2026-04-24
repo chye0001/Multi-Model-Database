@@ -138,6 +138,7 @@ model Item {
   closetItem ClosetItem[]
 
   @@index([categoryId])
+  @@index([price])
 }
 
 model Category {
