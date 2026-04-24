@@ -2,6 +2,7 @@ import express from "express";
 import session from "express-session";
 
 import { startNeo4jClosetCleanupScheduler, stopNeo4jClosetCleanupScheduler } from "./database/neo4j/scripts/closet-cleanup-scheduler.js";
+import {startMongoClosetCleanupScheduler, stopMongoClosetCleanupScheduler} from "./database/mongo/scripts/closet-cleanup-scheduler.js";
 
 import { connectMongo, disconnectMongo } from "./database/mongo/mongoose-client.js";
 import { connectNeo4j, disconnectNeo4j } from "./database/neo4j/neogma-client.js";
@@ -60,6 +61,7 @@ async function startApp() {
   try {
     if (isMongoEnabled) {
       await connectMongo();
+      startMongoClosetCleanupScheduler();
     }
 
     if (isNeo4jEnabled) {
@@ -83,6 +85,7 @@ async function startApp() {
 
 process.on("SIGINT", async () => {
   stopNeo4jClosetCleanupScheduler();
+  stopMongoClosetCleanupScheduler();
   await disconnectMongo();
   await disconnectNeo4j();
   process.exit(0);
@@ -90,6 +93,7 @@ process.on("SIGINT", async () => {
 
 process.on("SIGTERM", async () => {
   stopNeo4jClosetCleanupScheduler();
+  stopMongoClosetCleanupScheduler();
   await disconnectMongo();
   await disconnectNeo4j();
   process.exit(0);
