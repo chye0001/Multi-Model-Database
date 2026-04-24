@@ -69,21 +69,24 @@ export class PostgresOutfitRepository implements IOutfitRepository {
 
     async createOutfit(data: { name: string; style: string; createdBy: string }): Promise<Outfit[]> {
         try {
-            type CreatedRow = { id: bigint };
+            type CreatedIdRow = { id: bigint };
 
             const created = await prisma.$transaction(async (tx) => {
-                // Calls a DB function that returns the inserted outfit id.
-                const rows = await tx.$queryRaw<CreatedRow[]>`
-                SELECT create_outfit(
+                await tx.$executeRaw`
+                CALL create_outfit(
                     ${data.name}::text,
                     ${data.style}::text,
                     ${data.createdBy}::uuid
-                ) AS id
+                )
             `;
 
-                const createdId = rows[0]?.id;
+                const idRows = await tx.$queryRaw<CreatedIdRow[]>`
+                SELECT currval(pg_get_serial_sequence('outfits', 'id'))::bigint AS id
+            `;
+
+                const createdId = idRows[0]?.id;
                 if (!createdId) {
-                    throw new Error("Stored function did not return an outfit id");
+                    throw new Error("Could not resolve inserted outfit id after CALL create_outfit");
                 }
 
                 const outfit = await tx.outfit.findUnique({
@@ -100,11 +103,10 @@ export class PostgresOutfitRepository implements IOutfitRepository {
 
             return [formatUserOutfit(created, "postgresql")];
         } catch (error) {
-            console.error("Error creating outfit in PostgreSQL via stored function:", error);
+            console.error("Error creating outfit in PostgreSQL via procedure:", error);
             throw new Error("Failed to create outfit in PostgreSQL");
         }
     }
-
 
     async updateOutfit(id: string, data: Partial<{ name: string; style: string }>): Promise<Outfit[]> {
         try {

@@ -26,22 +26,16 @@ $$ LANGUAGE plpgsql;
 
 
 -- Procedure: Create new outfit for a user
-CREATE OR REPLACE FUNCTION create_outfit(
-    outfit_name TEXT,
-    outfit_style TEXT,
-    user_id UUID
+CREATE OR REPLACE PROCEDURE create_outfit(
+    IN outfit_name TEXT,
+    IN outfit_style TEXT,
+    IN user_id UUID
 )
-RETURNS BIGINT
 LANGUAGE plpgsql
 AS $$
-DECLARE
-new_id BIGINT;
 BEGIN
 INSERT INTO outfits(name, style, "createdBy")
-VALUES (outfit_name, outfit_style, user_id)
-    RETURNING id INTO new_id;
-
-RETURN new_id;
+VALUES (outfit_name, outfit_style, user_id);
 END;
 $$;
 
