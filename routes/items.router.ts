@@ -23,4 +23,8 @@ router.get('/:id/brands',             itemController.getItemBrands);
 router.post('/:id/brands',            itemController.addBrandToItem);
 router.delete('/:id/brands/:brandId', itemController.removeBrandFromItem);
 
+// show casing index performance
+router.get('/price/gt/:price', itemController.getItemByPriceGreaterThan);
+
+
 export default router;

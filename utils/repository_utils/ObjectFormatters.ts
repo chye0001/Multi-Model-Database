@@ -326,6 +326,7 @@ export function formatClothingItem(item: any, database: string): ClothingItem {
 
         brands,
         images: item.images?.map((img: any) => formatItemImage(img)) || [],
+        fromDatabase: databaseName
     };
 }
 

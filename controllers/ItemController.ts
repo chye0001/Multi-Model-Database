@@ -135,4 +135,18 @@ export class ItemController {
       res.status(400).send({ error: error?.message ?? 'Failed to remove brand' });
     }
   };
+
+  getItemByPriceGreaterThan = async (req: Request, res: Response) => {
+    try {
+      const price = Number(req.params.price);
+      if (isNaN(price)) return res.status(400).send({ error: 'price must be a number' });
+      
+      const items = await this.itemService.getItemByPriceGreaterThan(price);
+      if (items.length === 0) return res.status(404).send({ error: 'No items found with price greater than ' + price });
+      res.send(items);
+
+    } catch (error: any) {
+      res.status(500).send({ error: error?.message ?? 'Failed to find items by price' });
+    }
+  }
 }

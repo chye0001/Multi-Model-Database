@@ -70,7 +70,7 @@ const ItemSchema = new Schema<IItem>(
   {
     id:       { type: Number, required: true, unique: true },
     name:     { type: String, required: true, trim: true },
-    price:    { type: Number, default: null },
+    price: { type: Number, default: null, index: true, sparse: true },
     category: { type: EmbeddedCategorySchema, required: true },
     brands:   [EmbeddedBrandSchema],
     images:   [ImageSchema],

@@ -166,4 +166,16 @@ export class MongoItemRepository implements IItemRepository {
       throw new Error('Failed to remove brand from item in MongoDB');
     }
   }
+
+  async getItemsByPriceGreaterThan(price: number): Promise<ClothingItem[]> {
+    try {
+      const foundItems = await Item.find({ price: { $gt: price } });
+      return foundItems.map(item => formatClothingItem(item, "mongodb"));
+      
+    } catch (error) {
+      console.error(`Unexpected error when getting items with price greater than: ${price}`);
+      console.error(error);
+      throw error;
+    }
+  }
 }
