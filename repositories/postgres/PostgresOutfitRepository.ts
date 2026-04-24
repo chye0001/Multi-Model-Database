@@ -69,20 +69,42 @@ export class PostgresOutfitRepository implements IOutfitRepository {
 
     async createOutfit(data: { name: string; style: string; createdBy: string }): Promise<Outfit[]> {
         try {
-            const outfit = await prisma.outfit.create({
-                data: {
-                    name: data.name,
-                    style: data.style,
-                    createdBy: data.createdBy,
-                },
-                include: outfitInclude,
+            type CreatedRow = { id: bigint };
+
+            const created = await prisma.$transaction(async (tx) => {
+                // Calls a DB function that returns the inserted outfit id.
+                const rows = await tx.$queryRaw<CreatedRow[]>`
+                SELECT create_outfit(
+                    ${data.name}::text,
+                    ${data.style}::text,
+                    ${data.createdBy}::uuid
+                ) AS id
+            `;
+
+                const createdId = rows[0]?.id;
+                if (!createdId) {
+                    throw new Error("Stored function did not return an outfit id");
+                }
+
+                const outfit = await tx.outfit.findUnique({
+                    where: { id: createdId },
+                    include: outfitInclude,
+                });
+
+                if (!outfit) {
+                    throw new Error(`Created outfit not found for id "${String(createdId)}"`);
+                }
+
+                return outfit;
             });
-            return [formatUserOutfit(outfit, "postgresql")];
+
+            return [formatUserOutfit(created, "postgresql")];
         } catch (error) {
-            console.error("Error creating outfit in PostgreSQL:", error);
+            console.error("Error creating outfit in PostgreSQL via stored function:", error);
             throw new Error("Failed to create outfit in PostgreSQL");
         }
     }
+
 
     async updateOutfit(id: string, data: Partial<{ name: string; style: string }>): Promise<Outfit[]> {
         try {
