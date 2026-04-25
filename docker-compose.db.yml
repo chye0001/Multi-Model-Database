@@ -122,16 +122,16 @@ services:
     volumes:
       - neo4j_data:/data
     environment:
-      NEO4J_AUTH: ${NEO4J_USERNAME_DEV}/${NEO4J_PASSWORD_DEV}
+      NEO4J_AUTH: ${NEO4J_ROOT_USERNAME_DEV}/${NEO4J_ROOT_PASSWORD_DEV}
     healthcheck:
       test:
         [
           "CMD",
           "cypher-shell",
           "-u",
-          "${NEO4J_USERNAME_DEV}",
+          "${NEO4J_ROOT_USERNAME_DEV}",
           "-p",
-          "${NEO4J_PASSWORD_DEV}",
+          "${NEO4J_ROOT_PASSWORD_DEV}",
           "RETURN 1",
         ]
       interval: 10s
@@ -149,8 +149,8 @@ services:
     volumes:
       - ./database/neo4j/cyphers/constraints-and-indexes.cypher:/init/constraints-and-indexes.cypher:ro
     environment:
-      NEO4J_USERNAME: ${NEO4J_USERNAME_DEV}
-      NEO4J_PASSWORD: ${NEO4J_PASSWORD_DEV}
+      NEO4J_USERNAME: ${NEO4J_ROOT_USERNAME_DEV}
+      NEO4J_PASSWORD: ${NEO4J_ROOT_PASSWORD_DEV}
     networks:
       - database_network
     entrypoint: ["/bin/bash", "-c"]
@@ -165,6 +165,36 @@ services:
           exit 1
         fi
     restart: "no"
+  
+  neo4j-backup:
+    image: neo4j:5
+    container_name: neo4j_backup
+    depends_on:
+      neo4j:
+        condition: service_healthy
+    environment:
+      NEO4J_USERNAME: ${NEO4J_ROOT_USERNAME_DEV}
+      NEO4J_PASSWORD: ${NEO4J_ROOT_PASSWORD_DEV}
+    volumes:
+      - neo4j_data:/data                                                      # same volume as neo4j
+      - ./database/neo4j/backups/base:/neo4j_backup                           # where dumps land
+      - ./database/neo4j/backups/backup.sh:/usr/local/bin/backup.sh:ro
+      - /var/run/docker.sock:/var/run/docker.sock        # ← Docker remote control.. bad practice in prod, will give sidecar full access to docker deamon lol
+    networks:
+      - database_network
+    entrypoint: ["/bin/bash", "-c"]
+    command:
+      - |
+        echo "Installing Docker CLI..."
+        apt-get update -qq && apt-get install -y -qq docker.io
+        echo "Install complete. Waiting before first backup..."
+        sleep 15
+        while true; do
+          bash /usr/local/bin/backup.sh
+          echo "Next backup in 24 hours..."
+          sleep 86400
+        done
+    restart: unless-stopped
 
 volumes:
   database_volume:
@@ -172,6 +202,7 @@ volumes:
   mongo_data:
     name: mongo_data
   neo4j_data:
+    name: neo4j_data
 
 networks:
   database_network:
