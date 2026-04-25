@@ -9,7 +9,7 @@ function formatBrand(b: any): Brand {
   return {
     id: b.id,
     name: b.name,
-    country: b.country ? { id: b.country.id, name: b.country.name, countryCode: b.country.countryCode } : undefined,
+    country: b.country ? { id: b.country.id, name: b.country.name, countryCode: b.country.countryCode } : { id: 0, name: 'Unknown', countryCode: '' },
     fromDatabase: 'postgresql',
   };
 }
@@ -52,13 +52,19 @@ export class PostgresBrandRepository implements IBrandRepository {
     });
 
     try {
-      const country = await prisma.country.findFirst({ where: { countryCode: data.countryCode } });
-      if (!country) throw new Error(`Country with code "${data.countryCode}" not found`);
-      const brand = await prisma.brand.create({
-        data: { name: data.name, countryId: country.id },
-        include: { country: true },
+      const result = await prisma.$transaction(async (tx) => {
+        const country = await tx.country.findFirst({ where: { countryCode: data.countryCode } });
+        if (!country) throw new Error(`Country with code "${data.countryCode}" not found`);
+
+        const brand = await tx.brand.create({
+          data: { name: data.name, countryId: country.id },
+          include: { country: true },
+        });
+
+        return brand;
       });
-      return [formatBrand(brand)];
+
+      return [formatBrand(result)];
     } catch (error) {
       console.error('Error creating brand in PostgreSQL:', error);
       throw new Error('Failed to create brand in PostgreSQL');
@@ -75,14 +81,21 @@ export class PostgresBrandRepository implements IBrandRepository {
     });
 
     try {
-      const existing = await prisma.brand.findFirst({ where: { name } });
-      if (!existing) return [];
-      const brand = await prisma.brand.update({
-        where: { id: existing.id },
-        data: { name: newName },
-        include: { country: true },
+      const result = await prisma.$transaction(async (tx) => {
+        const existing = await tx.brand.findFirst({ where: { name } });
+        if (!existing) return null;
+
+        const brand = await tx.brand.update({
+          where: { id: existing.id },
+          data: { name: newName },
+          include: { country: true },
+        });
+
+        return brand;
       });
-      return [formatBrand(brand)];
+
+      if (!result) return [];
+      return [formatBrand(result)];
     } catch (error) {
       console.error(`Error updating brand "${name}" in PostgreSQL:`, error);
       throw new Error('Failed to update brand in PostgreSQL');
@@ -97,7 +110,7 @@ export class PostgresBrandRepository implements IBrandRepository {
       params: { name },
       source: 'PostgresBrandRepository.deleteBrand',
     });
-    
+
     try {
       const existing = await prisma.brand.findFirst({ where: { name } });
       if (!existing) return;
