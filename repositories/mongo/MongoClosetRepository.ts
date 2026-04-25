@@ -7,6 +7,8 @@ import type { IClosetRepository } from "../interfaces/IClosetRepository.js";
 import type { Closet as ClosetDTO } from "../../dtos/closets/Closet.dto.js";
 import type { ClothingItem } from "../../dtos/items/Item.dto.js";
 import { audit } from "../../utils/audit/AuditLogger.ts";
+import type { EmbeddedUser } from "../../dtos/users/User.dto.js";
+
 
 export class MongoClosetRepository implements IClosetRepository {
     async getAllClosets(): Promise<ClosetDTO[]> {
@@ -211,6 +213,50 @@ export class MongoClosetRepository implements IClosetRepository {
         } catch (error) {
             console.error(`Error fetching closets for user ${userId} from MongoDB:`, error);
             throw new Error("Failed to fetch user closets from MongoDB");
+        }
+    }
+
+    async getClosetShares(closetId: string): Promise<EmbeddedUser[]> {
+    try {
+        const numericId = this.parseNumericId(closetId, "closet id");
+        const closet = await Closet.findOne({ id: numericId }).lean().exec() as any;
+        if (!closet) return [];
+        return (closet.sharedWith ?? []).map((u: any) => ({
+            id: u.id, firstName: u.firstName, lastName: u.lastName, email: u.email,
+        }));
+    } catch (error) {
+        console.error(`Error fetching shares for closet ${closetId} from MongoDB:`, error);
+        throw new Error("Failed to fetch closet shares from MongoDB");
+        }
+    }
+
+    async shareCloset(closetId: string, userId: string): Promise<EmbeddedUser[]> {
+        audit({ timestamp: new Date().toISOString(), event: 'DOCUMENT_UPDATE', label: 'Closet.sharedWith', params: { closetId, userId, operation: 'addToSet' }, source: 'MongoClosetRepository.shareCloset' });
+        try {
+            const numericId = this.parseNumericId(closetId, "closet id");
+            const user = await User.findOne({ id: userId }).lean().exec() as any;
+            if (!user) throw new Error(`User ${userId} not found`);
+            const snapshot = { id: user.id, firstName: user.firstName, lastName: user.lastName, email: user.email };
+            const already = await Closet.findOne({ id: numericId, "sharedWith.id": userId }).lean().exec();
+            if (!already) {
+                await Closet.findOneAndUpdate({ id: numericId }, { $push: { sharedWith: snapshot } }).exec();
+            }
+            return await this.getClosetShares(closetId);
+        } catch (error) {
+            console.error(`Error sharing closet ${closetId} with user ${userId} in MongoDB:`, error);
+            throw new Error("Failed to share closet in MongoDB");
+        }
+    }
+
+
+    async unshareCloset(closetId: string, userId: string): Promise<void> {
+        audit({ timestamp: new Date().toISOString(), event: 'DOCUMENT_UPDATE', label: 'Closet.sharedWith', params: { closetId, userId, operation: 'pull' }, source: 'MongoClosetRepository.unshareCloset' });
+        try {
+            const numericId = this.parseNumericId(closetId, "closet id");
+            await Closet.findOneAndUpdate({ id: numericId }, { $pull: { sharedWith: { id: userId } } }).exec();
+        } catch (error) {
+            console.error(`Error unsharing closet ${closetId} from user ${userId} in MongoDB:`, error);
+            throw new Error("Failed to unshare closet in MongoDB");
         }
     }
 

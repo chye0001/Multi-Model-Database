@@ -1,5 +1,6 @@
 import type { Closet } from "../../dtos/closets/Closet.dto.js";
 import type { ClothingItem } from "../../dtos/items/Item.dto.js";
+import type { EmbeddedUser } from "../../dtos/users/User.dto.js";
 
 export interface IClosetRepository {
     getAllClosets(): Promise<Closet[]>;
@@ -13,4 +14,8 @@ export interface IClosetRepository {
     removeItemFromCloset(closetId: string, itemId: string): Promise<Closet[]>;
 
     getUserClosets(userId: string): Promise<Closet[]>;
+
+    getClosetShares(closetId: string): Promise<EmbeddedUser[]>;
+    shareCloset(closetId: string, userId: string): Promise<EmbeddedUser[]>;
+    unshareCloset(closetId: string, userId: string): Promise<void>;
 }
