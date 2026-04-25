@@ -4,6 +4,7 @@ import type { IItemRepository, ItemFilters } from '../interfaces/IItemRepository
 import type { ClothingItem, ItemImage } from '../../dtos/items/Item.dto.js';
 import type { Brand } from '../../dtos/brands/Brand.dto.js';
 import { audit } from '../../utils/audit/AuditLogger.ts';
+import { formatClothingItem } from '../../utils/repository_utils/ObjectFormatters.ts';
 
 function formatItem(record: any): ClothingItem {
   const i = record.get('i').properties;
@@ -232,6 +233,46 @@ export class Neo4jItemRepository implements IItemRepository {
     } catch (error) {
       console.error(`Error removing brand ${brandId} from item ${id} in Neo4j:`, error);
       throw new Error('Failed to remove brand from item in Neo4j');
+    }
+  }
+
+  async getItemsByPriceGreaterThan(price: number): Promise<ClothingItem[]> {
+    try {
+      const result = await neogma.queryRunner.run(
+        `MATCH (i:Item) WHERE i.price > $price
+        OPTIONAL MATCH (i)-[:BELONGS_TO]->(c:Category)
+        OPTIONAL MATCH (i)-[:MADE_BY]->(b:Brand)-[:IS_FROM]->(co:Country)
+        OPTIONAL MATCH (i)-[:HAS]->(img:Image)
+        RETURN i, 
+                c,
+                collect(DISTINCT { id: b.id, name: b.name, country: { id: co.id, name: co.name, countryCode: co.countryCode } }) AS brands,
+                collect(DISTINCT { id: img.id, url: img.url }) AS images`,
+        { price }
+      );
+
+      return result.records.map(record => {
+        const item     = record.get('i').properties;
+        const category = record.get('c').properties;
+        const brands   = record.get('brands');
+        const images   = record.get('images').filter((img: any) => img.url !== null);
+
+        return formatClothingItem(
+          {
+            id:       item.id,
+            name:     item.name,
+            price:    item.price != null ? item.price : null,
+            category: { categoryId: category.id, name: category.name },
+            brands,
+            images,
+          },
+          "neo4j"
+        );
+      });
+
+    } catch (error) {
+      console.error(`Unexpected error when getting items with price greater than: ${price}`);
+      console.error(error);
+      throw error;
     }
   }
 }

@@ -16,4 +16,5 @@ export class ItemService {
   async getItemBrands(id: number): Promise<Brand[]> { return await this.itemRepository.getItemBrands(id); }
   async addBrandToItem(id: number, brandId: number): Promise<Brand[]> { return await this.itemRepository.addBrandToItem(id, brandId); }
   async removeBrandFromItem(id: number, brandId: number): Promise<void> { await this.itemRepository.removeBrandFromItem(id, brandId); }
+  async getItemByPriceGreaterThan(price: number): Promise<ClothingItem[]> { return await this.itemRepository.getItemsByPriceGreaterThan(price); }
 }

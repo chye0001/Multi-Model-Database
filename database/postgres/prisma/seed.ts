@@ -6,15 +6,16 @@ import { prisma } from "../prisma-client.js";
 // ── CONFIGURATION ────────────────────────────────────────────────────────────
 // Adjust these numbers to control how much data gets seeded
 const CONFIG = {
-  users:               10,  // number of users to create
-  items:               2500,  // number of items to create
-  closets:             10,  // number of closets to create (spread across users)
-  outfits:             10,  // number of outfits to create
+  users:               100,  // number of users to create
+  items:               100,  // number of items to create
+  closets:             2500,  // number of closets to create (spread across users)
+  // outfits:             10,  // number of outfits to create
   reviews:             10,  // number of reviews (one per outfit)
   itemsPerCloset:       5,  // how many items to add to each closet
   itemsPerOutfit:       3,  // how many closet items to add to each outfit
   brandsPerItem:        2,  // max number of brands assigned to each item (min is always 1)
   sharedClosetsPerUser: 3,  // how many closets each user gets shared with them (from other users)
+  outfitsPerUser:       10,  // how many outfits a single user has
 };
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -154,19 +155,21 @@ async function seed() {
   }
 
   // ── 5. OUTFITS (configurable) ─────────────────────────────────────────────
-  console.log(`🌱 Seeding ${CONFIG.outfits} outfits...`);
+  console.log(`🌱 Seeding ${users.length * CONFIG.outfitsPerUser} outfits...`);
 
   const outfits = await Promise.all(
-    Array.from({ length: CONFIG.outfits }, () => {
-      const id = uid();
-      return prisma.outfit.create({
-        data: {
-          name:      `Outfit-${id}`,
-          style:     pick(styles),
-          createdBy: pick(users).id,
-        },
-      });
-    })
+    users.flatMap((user) =>
+      Array.from({ length: CONFIG.outfitsPerUser }, () => {
+        const id = uid();
+        return prisma.outfit.create({
+          data: {
+            name:      `Outfit-${id}`,
+            style:     pick(styles),
+            createdBy: user.id,
+          },
+        });
+      })
+    )
   );
 
   // Add closet items to each outfit
@@ -238,8 +241,8 @@ async function seed() {
     items:       items.length,
     closets:     closets.length,
     closetItems: closetItemsCreated.length,
-    outfits:       outfits.length,
-    outfitItems:   outfits.length * CONFIG.itemsPerOutfit,
+    outfits: users.length * CONFIG.outfitsPerUser,
+    outfitItems:   users.length * CONFIG.outfitsPerUser * CONFIG.itemsPerOutfit,
     reviews:       CONFIG.reviews,
     sharedClosets: sharedClosetCount,
   });

@@ -14,13 +14,13 @@ npm i
 # Starting up local databases (Postgres & MongoDB & Neo4j) via Docker
 Set up .env file based on .env.example, or with your own credentials. Should look something like this:
 
-Postgres credentials:
+Postgres develop root credentials:
 ```
 POSTGRES_DATABASE_URL_DEV=postgresql://postgres:postgres@localhost:5432/postgres
 
 POSTGRES_PORT_DEV=5432
-POSTGRES_USER_DEV=postgres
-POSTGRES_PASSWORD_DEV=postgres
+POSTGRES_ROOT_USER_DEV=postgres
+POSTGRES_ROOT_PASSWORD_DEV=postgres
 POSTGRES_DB_DEV=postgres
 DB_VOLUME_DEV=database_volume
 ```

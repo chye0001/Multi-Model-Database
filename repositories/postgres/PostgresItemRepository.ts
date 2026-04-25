@@ -153,4 +153,34 @@ export class PostgresItemRepository implements IItemRepository {
       throw new Error('Failed to remove brand from item in PostgreSQL');
     }
   }
+
+  async getItemsByPriceGreaterThan(price: number): Promise<ClothingItem[]> {
+    try {
+      const foundItems = await prisma.item.findMany({
+        where: {
+          price: { gt: price }
+        },
+        include: {
+          category: true,
+          itemBrands: {
+            include: {
+              brand: {
+                include: {
+                  country: true
+                }
+              }
+            }
+          },
+          images: true
+        }
+      });
+
+      return foundItems.map(item => formatClothingItem(item, "postgresql"));
+
+    } catch (error) {
+      console.error(`Unexpected error when getting items with price greater than: ${price}`);
+      console.error(error);
+      throw error;
+    }
+  }
 }

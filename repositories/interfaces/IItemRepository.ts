@@ -22,4 +22,7 @@ export interface IItemRepository {
   getItemBrands(id: number): Promise<Brand[]>;
   addBrandToItem(id: number, brandId: number): Promise<Brand[]>;
   removeBrandFromItem(id: number, brandId: number): Promise<void>;
+
+  // shows index in action
+  getItemsByPriceGreaterThan(price: number): Promise<ClothingItem[]> 
 }

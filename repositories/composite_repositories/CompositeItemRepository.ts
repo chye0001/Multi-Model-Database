@@ -58,4 +58,15 @@ export class CompositeItemRepository implements IItemRepository {
     isRepositoriesEnabled(this.enabledRepos);
     await Promise.all(this.enabledRepos.map(r => r.removeBrandFromItem(id, brandId)));
   }
+
+  async getItemsByPriceGreaterThan(price: number): Promise<ClothingItem[]> {
+    try {
+      isRepositoriesEnabled(this.enabledRepos);
+      const results = await Promise.all(this.enabledRepos.map(repo => repo.getItemsByPriceGreaterThan(price)));
+      return results.flat();
+      
+    } catch(error) {
+      throw error;
+    }
+  }
 }

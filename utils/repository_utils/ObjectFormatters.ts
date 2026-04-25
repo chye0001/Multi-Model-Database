@@ -316,7 +316,7 @@ export function formatClothingItem(item: any, database: string): ClothingItem {
     return {
         id:    Number(item.id),
         name:  item.name,
-        price: item.price ?? null,
+        price: Number(item.price) ?? null,
 
         // postgresql: category is a joined relation { id, name }
         // mongodb: category is embedded { categoryId, name }
@@ -326,6 +326,7 @@ export function formatClothingItem(item: any, database: string): ClothingItem {
 
         brands,
         images: item.images?.map((img: any) => formatItemImage(img)) || [],
+        fromDatabase: databaseName
     };
 }
 

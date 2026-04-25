@@ -132,4 +132,37 @@ export class ClosetController {
             res.status(500).send({ error: error?.message ?? "Internal Server Error" });
         }
     };
+
+    getClosetShares = async (req: Request, res: Response) => {
+        try {
+            const id = req.params.id as string;
+            if (!id) return res.status(400).send({ error: "Closet ID is required" });
+            res.send(await this.closetService.getClosetShares(id));
+        } catch (error: any) {
+            res.status(500).send({ error: error?.message ?? "Internal Server Error" });
+        }
+    };
+
+    shareCloset = async (req: Request, res: Response) => {
+        try {
+            const id = req.params.id as string;
+            if (!id) return res.status(400).send({ error: "Closet ID is required" });
+            const { userId } = req.body;
+            if (!userId) return res.status(400).send({ error: "userId is required" });
+            res.status(201).send(await this.closetService.shareCloset(id, userId));
+        } catch (error: any) {
+            res.status(400).send({ error: error?.message ?? "Failed to share closet" });
+        }
+    };
+
+    unshareCloset = async (req: Request, res: Response) => {
+        try {
+            const { id, userId } = req.params;
+            if (!id || !userId) return res.status(400).send({ error: "Closet ID and userId are required" });
+            await this.closetService.unshareCloset(id, userId);
+            res.status(204).send();
+        } catch (error: any) {
+            res.status(400).send({ error: error?.message ?? "Failed to unshare closet" });
+        }
+    };
 }
