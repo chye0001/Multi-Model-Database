@@ -21,4 +21,8 @@ router.delete("/:id/items/:itemId", closetController.removeItemFromCloset);
 
 router.get("/users/:userId/closets", closetController.getUserClosets);
 
+router.get("/:id/shares",             closetController.getClosetShares);
+router.post("/:id/shares",            closetController.shareCloset);
+router.delete("/:id/shares/:userId",  closetController.unshareCloset);
+
 export default router;

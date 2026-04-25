@@ -1,6 +1,7 @@
 import type { IClosetRepository } from "../repositories/interfaces/IClosetRepository.js";
 import type { Closet } from "../dtos/closets/Closet.dto.js";
 import type { ClothingItem } from "../dtos/items/Item.dto.js";
+import type { EmbeddedUser } from "../dtos/users/User.dto.js";
 
 export class ClosetService {
     constructor(private closetRepository: IClosetRepository) {}
@@ -39,5 +40,17 @@ export class ClosetService {
 
     async getUserClosets(userId: string): Promise<Closet[]> {
         return await this.closetRepository.getUserClosets(userId);
+    }
+
+    async getClosetShares(closetId: string): Promise<EmbeddedUser[]> {
+        return await this.closetRepository.getClosetShares(closetId);
+    }
+
+    async shareCloset(closetId: string, userId: string): Promise<EmbeddedUser[]> {
+        return await this.closetRepository.shareCloset(closetId, userId);
+    }
+
+    async unshareCloset(closetId: string, userId: string): Promise<void> {
+        return await this.closetRepository.unshareCloset(closetId, userId);
     }
 }

@@ -5,6 +5,8 @@ import type { IClosetRepository } from "../interfaces/IClosetRepository.js";
 import type { Closet } from "../../dtos/closets/Closet.dto.js";
 import type { ClothingItem } from "../../dtos/items/Item.dto.js";
 import { audit } from "../../utils/audit/AuditLogger.ts";
+import type { EmbeddedUser } from "../../dtos/users/User.dto.js";
+
 
 const closetInclude = {
     closetItem: {
@@ -240,4 +242,53 @@ export class PostgresClosetRepository implements IClosetRepository {
             throw new Error("Failed to fetch user closets from PostgreSQL");
         }
     }
+
+    async getClosetShares(closetId: string): Promise<EmbeddedUser[]> {
+        try {
+            const numericId = BigInt(closetId);
+            const rows = await prisma.sharedCloset.findMany({
+                where: { closetId: numericId },
+                include: { user: true },
+            });
+            return rows.map((r) => ({
+                id: r.user.id,
+                firstName: r.user.firstName,
+                lastName: r.user.lastName,
+                email: r.user.email,
+            }));
+        } catch (error) {
+            console.error(`Error fetching shares for closet ${closetId} from PostgreSQL:`, error);
+            throw new Error("Failed to fetch closet shares from PostgreSQL");
+        }
+    }
+
+    async shareCloset(closetId: string, userId: string): Promise<EmbeddedUser[]> {
+        audit({ timestamp: new Date().toISOString(), event: 'ROW_INSERT', label: 'shared_closets', params: { closetId, userId }, source: 'PostgresClosetRepository.shareCloset' });
+        try {
+            const numericId = BigInt(closetId);
+            await prisma.sharedCloset.upsert({
+                where: { closetId_userId: { closetId: numericId, userId } },
+                create: { closetId: numericId, userId },
+                update: {},
+            });
+            return await this.getClosetShares(closetId);
+        } catch (error) {
+            console.error(`Error sharing closet ${closetId} with user ${userId} in PostgreSQL:`, error);
+            throw new Error("Failed to share closet in PostgreSQL");
+        }
+    }
+
+    async unshareCloset(closetId: string, userId: string): Promise<void> {
+        audit({ timestamp: new Date().toISOString(), event: 'ROW_DELETE', label: 'shared_closets', params: { closetId, userId }, source: 'PostgresClosetRepository.unshareCloset' });
+        try {
+            const numericId = BigInt(closetId);
+            await prisma.sharedCloset.delete({
+                where: { closetId_userId: { closetId: numericId, userId } },
+            });
+        } catch (error) {
+            console.error(`Error unsharing closet ${closetId} from user ${userId} in PostgreSQL:`, error);
+            throw new Error("Failed to unshare closet in PostgreSQL");
+        }
+    }
 }
+
