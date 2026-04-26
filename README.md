@@ -46,11 +46,12 @@ To start up the local databases, run the following command:
 docker compose -f docker-compose.db.yml up -d
 ```
 
-To understand how to work with the local databases using Prisma & Mongoose see the [README.md](./database/README.md) located in the /database folder. 
+To understand how to work with the local databases using Prisma & Mongoose & Neogma see the [README.md](./database/README.md) located in the /database folder. 
 
 
 
 # Controlling which database are in use
+The application has been designed so that all 3 databases can run in parallel, meaning data will be synchronised accross all 3 databases, if they are all enabled.
 To enable or disable the differnet databases just configure the [.env](.env) for the following 3 enviornemt values:
 
 POSTGRES_ENABLED_DEV=true | false

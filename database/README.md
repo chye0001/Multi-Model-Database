@@ -5,14 +5,14 @@ Then execute the folllowing command:
 ```bash
 docker compose -f docker-compose.db.yml up -d
 ```
-This will start up a local instance of a Postgress & Mongo database, using a default volume named: "default_volume". 
+This will start up a local instance of a Postgress & Mongo & Neo4j databases, using a default volume named for the postgres db instance: "default_volume". 
 You can change and initilise different volumes using the following command:
 
 ```bash
 DB_VOLUME="name_of_your_choice" docker compose -f docker-compose.db.yml up -d
 ```
 
-or simply set the value of DB_VOLUME in the [.env](.env) file and run:
+or simply set the value of DB_VOLUME in the [.env](.env) file and run (these volume configuration currently is only supported for the postgres db instance):
 ```bash
 docker compose -f docker-compose.db.yml up -d
 ```
@@ -132,10 +132,11 @@ executed via package.json scripts to enable the some of the same features.
 
 ## Seeding the Database
 To seed the monogo database simply run the following command:
-TODO maybe seed on first container build?
 ```bash
 npm run mongo:seed
 ```
+Another option is to do a migration, which will be covered at the buttom of this readme.
+
 
 ## Reseting the Database
 To reset the database wiping out all the data call the command:
@@ -189,6 +190,8 @@ To seed the Neo4j graph database use execute this command - script found [here](
 ```bash
 npm run neo4j:seed
 ```
+Another option is to do a migration, which will be covered at the buttom of this readme.
+
 
 ## Reseting the database
 To reset or truncate the database run the command:
@@ -200,13 +203,32 @@ npm run neo4j:reset
 After you have started up the docker containers, the management tool should be availabe at: http://localhost:7474/browser/
 The port might be different check that in the Docker Desktop app.
 
+# Neo4j - Backup & Restore
+
+## Backup
+Initially on the first start up of the compose file, Neo4j will do an automatic backup, which will run every 24 hours. This backup will be placed in the backup folder under Neo4j, the [location](./neo4j/backups/base/) (This is not a physical backup since this is not supported in the comunity edition... so its a logical backup ie. a dumpfile).
+
+To do manual backup, simply run:
+```bash
+npm run neo4j:backup
+```
+This will place the "backup" in the same location.
+
+## Restore
+To restore any backup simply run:
+```bash
+npm run neo4j:restore
+```
+This will prompt you to select a backup, located in the backups folder under Neo4j in the database folder and apply this.
+
 
 
 
 # Data migration from Postgres --> MongoDB & Neo4j
 
 ## Migration
-When migrating all the data from Postgres over to MongoDB & Neo4j, you first need to make sure that the Postgres database is seeded.
+When migrating all the data from Postgres over to MongoDB & Neo4j, you first need to make sure that the Postgres database is seeded. As the Postgres database acts as the soruce of truth. Before seeding the Postgres database, ensure all migrations are applied localy.
+
 After it has been seeded execute:
 ```bash
 npm run all-databases:migrate
