@@ -149,6 +149,7 @@ export class Neo4jOutfitRepository implements IOutfitRepository {
     }
 
     async createOutfit(data: { name: string; style: string; createdBy: string }): Promise<Outfit[]> {
+        const session = neogma.driver.session();
         try {
             const maxResult = await neogma.queryRunner.run(
                 `MATCH (o:Outfit) RETURN coalesce(max(o.id), 0) AS maxId`
@@ -158,23 +159,27 @@ export class Neo4jOutfitRepository implements IOutfitRepository {
             const nextId = this.toNumber(rawMax) + 1;
             const dateAdded = new Date().toISOString();
 
-            await neogma.queryRunner.run(
-                `MATCH (u:User { id: $userId })
-                 CREATE (o:Outfit { id: $id, name: $name, style: $style, dateAdded: $dateAdded })
-                 CREATE (u)-[:CREATES { dateAdded: $dateAdded }]->(o)`,
-                {
-                    id: nextId,
-                    name: data.name,
-                    style: data.style,
-                    userId: data.createdBy,
-                    dateAdded,
-                }
-            );
+            await session.executeWrite(async (tx) => {
+                await tx.run(
+                    `MATCH (u:User { id: $userId })
+                     CREATE (o:Outfit { id: $id, name: $name, style: $style, dateAdded: $dateAdded })
+                     CREATE (u)-[:CREATES { dateAdded: $dateAdded }]->(o)`,
+                    {
+                        id: nextId,
+                        name: data.name,
+                        style: data.style,
+                        userId: data.createdBy,
+                        dateAdded,
+                    }
+                );
+            });
 
             return await this.getOutfitById(String(nextId));
         } catch (error) {
             console.error("Error creating outfit in Neo4j:", error);
             throw new Error("Failed to create outfit in Neo4j");
+        } finally {
+            await session.close();
         }
     }
 
@@ -223,41 +228,69 @@ export class Neo4jOutfitRepository implements IOutfitRepository {
             throw new Error("Failed to fetch outfit items from Neo4j");
         }
     }
+    async getOutfitPrice(id: string): Promise<number> {
+        try {
+            const numericId = this.parseNumericId(id, "outfit id");
+
+            const result = await neogma.queryRunner.run(
+                `MATCH (o:Outfit { id: $id })
+             OPTIONAL MATCH (o)-[:CONTAINS]->(i:Item)
+             RETURN coalesce(sum(coalesce(i.price, 0)), 0) AS totalPrice`,
+                { id: numericId }
+            );
+
+            if (result.records.length === 0) return 0;
+            return Number(result.records[0]?.get("totalPrice") ?? 0);
+        } catch (error) {
+            console.error(`Error calculating outfit price for ${id} in Neo4j:`, error);
+            throw new Error("Failed to calculate outfit price in Neo4j");
+        }
+    }
 
     async addItemToOutfit(id: string, itemId: string): Promise<Outfit[]> {
+        const session = neogma.driver.session();
         try {
             const numericOutfitId = this.parseNumericId(id, "outfit id");
             const numericItemId = this.parseNumericId(itemId, "item id");
 
-            await neogma.queryRunner.run(
-                `MATCH (o:Outfit { id: $outfitId })
-                 MATCH (i:Item { id: $itemId })
-                 MERGE (o)-[:CONTAINS]->(i)`,
-                { outfitId: numericOutfitId, itemId: numericItemId }
-            );
+            await session.executeWrite(async (tx) => {
+                await tx.run(
+                    `MATCH (o:Outfit { id: $outfitId })
+                     MATCH (i:Item { id: $itemId })
+                     MERGE (o)-[:CONTAINS]->(i)`,
+                    { outfitId: numericOutfitId, itemId: numericItemId }
+                );
+            });
 
             return await this.getOutfitById(id);
         } catch (error) {
             console.error(`Error adding item ${itemId} to outfit ${id} in Neo4j:`, error);
             throw new Error("Failed to add item to outfit in Neo4j");
+        } finally {
+            await session.close();
         }
     }
 
     async removeItemFromOutfit(id: string, itemId: string): Promise<Outfit[]> {
+        const session = neogma.driver.session();
         try {
             const numericOutfitId = this.parseNumericId(id, "outfit id");
             const numericItemId = this.parseNumericId(itemId, "item id");
 
-            await neogma.queryRunner.run(
-                `MATCH (o:Outfit { id: $outfitId })-[rel:CONTAINS]->(i:Item { id: $itemId })
-                 DELETE rel`,
-                { outfitId: numericOutfitId, itemId: numericItemId }
-            );
+            await session.executeWrite(async (tx) => {
+                await tx.run(
+                    `MATCH (o:Outfit { id: $outfitId })-[rel:CONTAINS]->(i:Item { id: $itemId })
+                     DELETE rel`,
+                    { outfitId: numericOutfitId, itemId: numericItemId }
+                );
+            });
 
             return await this.getOutfitById(id);
         } catch (error) {
             console.error(`Error removing item ${itemId} from outfit ${id} in Neo4j:`, error);
             throw new Error("Failed to remove item from outfit in Neo4j");
+        } finally {
+            await session.close();
         }
     }
 
@@ -323,11 +356,44 @@ export class Neo4jOutfitRepository implements IOutfitRepository {
                 { userId }
             );
 
-            if (result.records.length === 0) return [];
             return result.records.map((record) => formatUserOutfit(record, "neo4j"));
         } catch (error) {
             console.error(`Error fetching outfits for user ${userId} from Neo4j:`, error);
-            throw new Error("Failed to fetch outfits by user from Neo4j");
+            throw new Error("Failed to fetch user outfits from Neo4j");
+        }
+    }
+
+    async getOutfitOverview(style?: string): Promise<OutfitOverview[]> {
+        try {
+            const result = await neogma.queryRunner.run(
+                `MATCH (u:User)-[rel:CREATES]->(o:Outfit)
+             WHERE $style IS NULL OR o.style = $style
+             OPTIONAL MATCH (o)-[:CONTAINS]->(i:Item)
+             RETURN
+               o.id AS id,
+               o.name AS name,
+               o.style AS style,
+               coalesce(rel.dateAdded, o.dateAdded) AS dateAdded,
+               u.firstName AS firstName,
+               u.lastName AS lastName,
+               count(DISTINCT i) AS itemCount
+             ORDER BY dateAdded DESC`,
+                { style: style ?? null }
+            );
+
+            return result.records.map((record) => ({
+                id: Number(record.get("id")),
+                name: String(record.get("name")),
+                style: String(record.get("style")),
+                dateAdded: String(record.get("dateAdded")),
+                firstName: String(record.get("firstName") ?? ""),
+                lastName: String(record.get("lastName") ?? ""),
+                itemCount: Number(record.get("itemCount") ?? 0),
+                fromDatabase: "neo4j",
+            }));
+        } catch (error) {
+            console.error("Error fetching outfit overview from Neo4j:", error);
+            throw new Error("Failed to fetch outfit overview from Neo4j");
         }
     }
 
@@ -348,56 +414,4 @@ export class Neo4jOutfitRepository implements IOutfitRepository {
         const n = Number(value ?? 0);
         return Number.isFinite(n) ? n : 0;
     }
-
-    async getOutfitOverview(style?: string): Promise<OutfitOverview[]> {
-        try {
-            const result = await neogma.queryRunner.run(
-                `MATCH (u:User)-[rel:CREATES]->(o:Outfit)
-       WHERE $style IS NULL OR o.style = $style
-       OPTIONAL MATCH (o)-[:CONTAINS]->(i:Item)
-       RETURN o.id AS id,
-              o.name AS name,
-              o.style AS style,
-              coalesce(rel.dateAdded, o.dateAdded) AS dateAdded,
-              u.firstName AS firstName,
-              u.lastName AS lastName,
-              count(DISTINCT i) AS itemCount
-       ORDER BY dateAdded DESC`,
-                { style: style ?? null }
-            );
-
-            return result.records.map((record) => ({
-                id: this.toNumber(record.get("id")),
-                name: String(record.get("name") ?? ""),
-                style: String(record.get("style") ?? ""),
-                dateAdded: String(record.get("dateAdded") ?? ""),
-                firstName: String(record.get("firstName") ?? ""),
-                lastName: String(record.get("lastName") ?? ""),
-                itemCount: this.toNumber(record.get("itemCount")),
-                fromDatabase: "neo4j",
-            }));
-        } catch (error) {
-            console.error("Error fetching outfit overview from Neo4j:", error);
-            throw new Error("Failed to fetch outfit overview from Neo4j");
-        }
-    }
-
-    async getOutfitPrice(id: string): Promise<number> {
-        try {
-            const numericId = this.parseNumericId(id, "outfit id");
-
-            const result = await neogma.queryRunner.run(
-                `MATCH (o:Outfit {id: $outfitId})-[:CONTAINS]->(i:Item)
-             RETURN coalesce(sum(coalesce(i.price, 0)), 0) AS total_price`,
-                { outfitId: numericId }
-            );
-
-            const totalPrice = result.records[0]?.get("total_price");
-            return this.toNumber(totalPrice);
-        } catch (error) {
-            console.error(`Error calculating outfit price for outfit ${id} in Neo4j:`, error);
-            throw new Error("Failed to calculate outfit price in Neo4j");
-        }
-    }
-
 }

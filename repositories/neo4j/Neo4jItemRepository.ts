@@ -10,14 +10,14 @@ function formatItem(record: any): ClothingItem {
   const i = record.get('i').properties;
   const cat = record.get('cat')?.properties;
   const brands = (record.get('brands') ?? [])
-    .filter((b: any) => b !== null)
-    .map((b: any) => {
-      const bp = b.properties;
-      return { id: Number(bp.id), name: bp.name, country: { id: 0, name: '', countryCode: '' } };
-    });
+      .filter((b: any) => b !== null)
+      .map((b: any) => {
+        const bp = b.properties;
+        return { id: Number(bp.id), name: bp.name, country: { id: 0, name: '', countryCode: '' } };
+      });
   const images = (record.get('images') ?? [])
-    .filter((img: any) => img !== null)
-    .map((img: any) => ({ id: Number(img.properties.id), url: img.properties.url }));
+      .filter((img: any) => img !== null)
+      .map((img: any) => ({ id: Number(img.properties.id), url: img.properties.url }));
   return {
     id: Number(i.id),
     name: i.name,
@@ -68,24 +68,32 @@ export class Neo4jItemRepository implements IItemRepository {
 
   async createItem(data: { name: string; price?: number; categoryId: number }): Promise<ClothingItem[]> {
     audit({
-    timestamp: new Date().toISOString(),
-    event: 'NODE_CREATE',
-    label: 'Item',
-    params: { name: data.name, categoryId: data.categoryId },
-    source: 'Neo4jItemRepository.createItem',
-  });
+      timestamp: new Date().toISOString(),
+      event: 'NODE_CREATE',
+      label: 'Item',
+      params: { name: data.name, categoryId: data.categoryId },
+      source: 'Neo4jItemRepository.createItem',
+    });
+    const session = neogma.driver.session();
     try {
       const catCheck = await neogma.queryRunner.run(`MATCH (cat:Category { id: $id }) RETURN cat`, { id: data.categoryId });
       if (catCheck.records.length === 0) throw new Error(`Category ${data.categoryId} not found`);
+
       const maxResult = await neogma.queryRunner.run(`MATCH (i:Item) RETURN coalesce(max(i.id), 0) AS maxId`);
       const nextId = Number(maxResult.records[0]?.get('maxId') ?? 0) + 1;
-      const ItemModel = getItemModel();
-      const item = await ItemModel.createOne({ id: nextId, name: data.name, ...(data.price !== undefined && { price: data.price }) });
-      await item.relateTo({ alias: 'category', where: { id: data.categoryId } });
+
+      await session.executeWrite(async (tx) => {
+        const ItemModel = getItemModel();
+        const item = await ItemModel.createOne({ id: nextId, name: data.name, ...(data.price !== undefined && { price: data.price }) });
+        await item.relateTo({ alias: 'category', where: { id: data.categoryId } });
+      });
+
       return await this.getItemById(nextId);
     } catch (error) {
       console.error('Error creating item in Neo4j:', error);
       throw new Error('Failed to create item in Neo4j');
+    } finally {
+      await session.close();
     }
   }
 
@@ -123,7 +131,7 @@ export class Neo4jItemRepository implements IItemRepository {
       label: 'Item',
       params: { id },
       source: 'Neo4jItemRepository.deleteItem',
-  });
+    });
     try {
       await neogma.queryRunner.run(`MATCH (i:Item { id: $id }) DETACH DELETE i`, { id });
     } catch (error) {
@@ -135,7 +143,7 @@ export class Neo4jItemRepository implements IItemRepository {
   async getItemImages(id: number): Promise<ItemImage[]> {
     try {
       const result = await neogma.queryRunner.run(
-        `MATCH (i:Item { id: $id })-[:HAS]->(img:Image) RETURN img`, { id }
+          `MATCH (i:Item { id: $id })-[:HAS]->(img:Image) RETURN img`, { id }
       );
       return result.records.map(r => {
         const p = r.get('img').properties;
@@ -148,27 +156,34 @@ export class Neo4jItemRepository implements IItemRepository {
   }
 
   async addImageToItem(id: number, data: { url: string }): Promise<ItemImage[]> {
+    const session = neogma.driver.session();
     try {
       const maxResult = await neogma.queryRunner.run(`MATCH (img:Image) RETURN coalesce(max(img.id), 0) AS maxId`);
       const nextId = Number(maxResult.records[0]?.get('maxId') ?? 0) + 1;
-      const ImageModel = getImageModel();
-      await ImageModel.createOne({ id: nextId, url: data.url });
-      await neogma.queryRunner.run(
-        `MATCH (i:Item { id: $itemId }), (img:Image { id: $imgId }) MERGE (i)-[:HAS]->(img)`,
-        { itemId: id, imgId: nextId }
-      );
+
+      await session.executeWrite(async (tx) => {
+        const ImageModel = getImageModel();
+        await ImageModel.createOne({ id: nextId, url: data.url });
+        await tx.run(
+            `MATCH (i:Item { id: $itemId }), (img:Image { id: $imgId }) MERGE (i)-[:HAS]->(img)`,
+            { itemId: id, imgId: nextId }
+        );
+      });
+
       return await this.getItemImages(id);
     } catch (error) {
       console.error(`Error adding image to item ${id} in Neo4j:`, error);
       throw new Error('Failed to add image to item in Neo4j');
+    } finally {
+      await session.close();
     }
   }
 
   async removeImageFromItem(id: number, imageId: number): Promise<void> {
     try {
       await neogma.queryRunner.run(
-        `MATCH (i:Item { id: $id })-[r:HAS]->(img:Image { id: $imageId }) DELETE r`,
-        { id, imageId }
+          `MATCH (i:Item { id: $id })-[r:HAS]->(img:Image { id: $imageId }) DELETE r`,
+          { id, imageId }
       );
     } catch (error) {
       console.error(`Error removing image ${imageId} from item ${id} in Neo4j:`, error);
@@ -179,8 +194,8 @@ export class Neo4jItemRepository implements IItemRepository {
   async getItemBrands(id: number): Promise<Brand[]> {
     try {
       const result = await neogma.queryRunner.run(
-        `MATCH (i:Item { id: $id })-[:MADE_BY]->(b:Brand) OPTIONAL MATCH (b)-[:IS_FROM]->(c:Country) RETURN b, c`,
-        { id }
+          `MATCH (i:Item { id: $id })-[:MADE_BY]->(b:Brand) OPTIONAL MATCH (b)-[:IS_FROM]->(c:Country) RETURN b, c`,
+          { id }
       );
       return result.records.map(r => {
         const b = r.get('b').properties;
@@ -200,19 +215,25 @@ export class Neo4jItemRepository implements IItemRepository {
       label: 'Item-[:MADE_BY]->Brand',
       params: { itemId: id, brandId },
       source: 'Neo4jItemRepository.addBrandToItem',
-  });
-
+    });
+    const session = neogma.driver.session();
     try {
       const check = await neogma.queryRunner.run(`MATCH (b:Brand { id: $brandId }) RETURN b`, { brandId });
       if (check.records.length === 0) throw new Error(`Brand ${brandId} not found`);
-      await neogma.queryRunner.run(
-        `MATCH (i:Item { id: $id }), (b:Brand { id: $brandId }) MERGE (i)-[:MADE_BY]->(b)`,
-        { id, brandId }
-      );
+
+      await session.executeWrite(async (tx) => {
+        await tx.run(
+            `MATCH (i:Item { id: $id }), (b:Brand { id: $brandId }) MERGE (i)-[:MADE_BY]->(b)`,
+            { id, brandId }
+        );
+      });
+
       return await this.getItemBrands(id);
     } catch (error) {
       console.error(`Error adding brand ${brandId} to item ${id} in Neo4j:`, error);
       throw new Error('Failed to add brand to item in Neo4j');
+    } finally {
+      await session.close();
     }
   }
 
@@ -223,12 +244,11 @@ export class Neo4jItemRepository implements IItemRepository {
       label: 'Item-[:MADE_BY]->Brand',
       params: { itemId: id, brandId },
       source: 'Neo4jItemRepository.removeBrandFromItem',
-  });
-  
+    });
     try {
       await neogma.queryRunner.run(
-        `MATCH (i:Item { id: $id })-[r:MADE_BY]->(b:Brand { id: $brandId }) DELETE r`,
-        { id, brandId }
+          `MATCH (i:Item { id: $id })-[r:MADE_BY]->(b:Brand { id: $brandId }) DELETE r`,
+          { id, brandId }
       );
     } catch (error) {
       console.error(`Error removing brand ${brandId} from item ${id} in Neo4j:`, error);
@@ -239,7 +259,7 @@ export class Neo4jItemRepository implements IItemRepository {
   async getItemsByPriceGreaterThan(price: number): Promise<ClothingItem[]> {
     try {
       const result = await neogma.queryRunner.run(
-        `MATCH (i:Item) WHERE i.price > $price
+          `MATCH (i:Item) WHERE i.price > $price
         OPTIONAL MATCH (i)-[:BELONGS_TO]->(c:Category)
         OPTIONAL MATCH (i)-[:MADE_BY]->(b:Brand)-[:IS_FROM]->(co:Country)
         OPTIONAL MATCH (i)-[:HAS]->(img:Image)
@@ -247,25 +267,25 @@ export class Neo4jItemRepository implements IItemRepository {
                 c,
                 collect(DISTINCT { id: b.id, name: b.name, country: { id: co.id, name: co.name, countryCode: co.countryCode } }) AS brands,
                 collect(DISTINCT { id: img.id, url: img.url }) AS images`,
-        { price }
+          { price }
       );
 
       return result.records.map(record => {
-        const item     = record.get('i').properties;
+        const item = record.get('i').properties;
         const category = record.get('c').properties;
-        const brands   = record.get('brands');
-        const images   = record.get('images').filter((img: any) => img.url !== null);
+        const brands = record.get('brands');
+        const images = record.get('images').filter((img: any) => img.url !== null);
 
         return formatClothingItem(
-          {
-            id:       item.id,
-            name:     item.name,
-            price:    item.price != null ? item.price : null,
-            category: { categoryId: category.id, name: category.name },
-            brands,
-            images,
-          },
-          "neo4j"
+            {
+              id: item.id,
+              name: item.name,
+              price: item.price != null ? item.price : null,
+              category: { categoryId: category.id, name: category.name },
+              brands,
+              images,
+            },
+            "neo4j"
         );
       });
 

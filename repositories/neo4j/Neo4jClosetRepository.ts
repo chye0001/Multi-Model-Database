@@ -4,6 +4,7 @@ import { formatUserCloset } from "../../utils/repository_utils/ObjectFormatters.
 import type { IClosetRepository } from "../interfaces/IClosetRepository.js";
 import type { Closet as ClosetDTO } from "../../dtos/closets/Closet.dto.js";
 import type { ClothingItem } from "../../dtos/items/Item.dto.js";
+import type { EmbeddedUser } from "../../dtos/users/User.dto.js";
 import { audit } from "../../utils/audit/AuditLogger.ts";
 
 export class Neo4jClosetRepository implements IClosetRepository {
@@ -82,6 +83,7 @@ export class Neo4jClosetRepository implements IClosetRepository {
             params: { name: data.name, isPublic: data.isPublic, userId: data.userId },
             source: 'Neo4jClosetRepository.createCloset',
         });
+        const session = neogma.driver.session();
         try {
             const maxResult = await neogma.queryRunner.run(
                 `MATCH (cl:Closet) RETURN coalesce(max(cl.id), 0) AS maxId`
@@ -91,33 +93,37 @@ export class Neo4jClosetRepository implements IClosetRepository {
             const nextId = maxId + 1;
             const createdAt = new Date().toISOString();
 
-            await neogma.queryRunner.run(
-                `MATCH (u:User { id: $userId })
-                 CREATE (cl:Closet {
-                   id: $id,
-                   name: $name,
-                   description: $description,
-                   isPublic: $isPublic,
-                   userId: $userId,
-                   createdAt: $createdAt
-                 })
-                 CREATE (u)-[:HAS { createdAt: $createdAt }]->(cl)`,
-                {
-                    id: nextId,
-                    name: data.name,
-                    description: data.description ?? "",
-                    isPublic: data.isPublic,
-                    userId: data.userId,
-                    createdAt,
-                }
-            );
+            await session.executeWrite(async (tx) => {
+                await tx.run(
+                    `MATCH (u:User { id: $userId })
+                     CREATE (cl:Closet {
+                       id: $id,
+                       name: $name,
+                       description: $description,
+                       isPublic: $isPublic,
+                       userId: $userId,
+                       createdAt: $createdAt
+                     })
+                     CREATE (u)-[:HAS { createdAt: $createdAt }]->(cl)`,
+                    {
+                        id: nextId,
+                        name: data.name,
+                        description: data.description ?? "",
+                        isPublic: data.isPublic,
+                        userId: data.userId,
+                        createdAt,
+                    }
+                );
+            });
+
             return await this.getClosetById(String(nextId));
         } catch (error) {
             console.error("Error creating closet in Neo4j:", error);
             throw new Error("Failed to create closet in Neo4j");
+        } finally {
+            await session.close();
         }
     }
-
 
     async updateCloset(id: string, data: Partial<{ name: string; description: string; isPublic: boolean }>): Promise<ClosetDTO[]> {
         audit({
@@ -164,7 +170,6 @@ export class Neo4jClosetRepository implements IClosetRepository {
             throw new Error("Failed to delete closet from Neo4j");
         }
     }
-
 
     async getClosetItems(id: string): Promise<ClothingItem[]> {
         try {
@@ -227,19 +232,26 @@ export class Neo4jClosetRepository implements IClosetRepository {
             params: { closetId, itemId },
             source: 'Neo4jClosetRepository.addItemToCloset',
         });
+        const session = neogma.driver.session();
         try {
             const numericClosetId = this.parseNumericId(closetId, "closet id");
             const numericItemId = this.parseNumericId(itemId, "item id");
-            await neogma.queryRunner.run(
-                `MATCH (cl:Closet { id: $closetId })
-                 MATCH (i:Item { id: $itemId })
-                 MERGE (cl)-[:STORES]->(i)`,
-                { closetId: numericClosetId, itemId: numericItemId }
-            );
+
+            await session.executeWrite(async (tx) => {
+                await tx.run(
+                    `MATCH (cl:Closet { id: $closetId })
+                     MATCH (i:Item { id: $itemId })
+                     MERGE (cl)-[:STORES]->(i)`,
+                    { closetId: numericClosetId, itemId: numericItemId }
+                );
+            });
+
             return await this.getClosetById(closetId);
         } catch (error) {
             console.error(`Error adding item ${itemId} to closet ${closetId} in Neo4j:`, error);
             throw new Error("Failed to add item to closet in Neo4j");
+        } finally {
+            await session.close();
         }
     }
 
@@ -251,17 +263,24 @@ export class Neo4jClosetRepository implements IClosetRepository {
             params: { closetId, itemId },
             source: 'Neo4jClosetRepository.removeItemFromCloset',
         });
+        const session = neogma.driver.session();
         try {
             const numericClosetId = this.parseNumericId(closetId, "closet id");
             const numericItemId = this.parseNumericId(itemId, "item id");
-            await neogma.queryRunner.run(
-                `MATCH (cl:Closet { id: $closetId })-[rel:STORES]->(i:Item { id: $itemId }) DELETE rel`,
-                { closetId: numericClosetId, itemId: numericItemId }
-            );
+
+            await session.executeWrite(async (tx) => {
+                await tx.run(
+                    `MATCH (cl:Closet { id: $closetId })-[rel:STORES]->(i:Item { id: $itemId }) DELETE rel`,
+                    { closetId: numericClosetId, itemId: numericItemId }
+                );
+            });
+
             return await this.getClosetById(closetId);
         } catch (error) {
             console.error(`Error removing item ${itemId} from closet ${closetId} in Neo4j:`, error);
             throw new Error("Failed to remove item from closet in Neo4j");
+        } finally {
+            await session.close();
         }
     }
 
@@ -293,6 +312,87 @@ export class Neo4jClosetRepository implements IClosetRepository {
         } catch (error) {
             console.error(`Error fetching closets for user ${userId} from Neo4j:`, error);
             throw new Error("Failed to fetch user closets from Neo4j");
+        }
+    }
+
+    async getClosetShares(closetId: string): Promise<EmbeddedUser[]> {
+        try {
+            const numericId = this.parseNumericId(closetId, "closet id");
+            const result = await neogma.queryRunner.run(
+                `MATCH (cl:Closet { id: $closetId })-[:CO_CURATES]-(sharedUser:User)
+                 RETURN sharedUser`,
+                { closetId: numericId }
+            );
+
+            return result.records.map((record) => {
+                const u = record.get("sharedUser").properties;
+                return {
+                    id: u.id,
+                    firstName: u.firstName,
+                    lastName: u.lastName,
+                    email: u.email,
+                };
+            });
+        } catch (error) {
+            console.error(`Error fetching shares for closet ${closetId} from Neo4j:`, error);
+            throw new Error("Failed to fetch closet shares from Neo4j");
+        }
+    }
+
+    async shareCloset(closetId: string, userId: string): Promise<EmbeddedUser[]> {
+        audit({
+            timestamp: new Date().toISOString(),
+            event: 'RELATIONSHIP_CREATE',
+            label: 'User-[:CO_CURATES]->Closet',
+            params: { closetId, userId },
+            source: 'Neo4jClosetRepository.shareCloset',
+        });
+        const session = neogma.driver.session();
+        try {
+            const numericId = this.parseNumericId(closetId, "closet id");
+
+            await session.executeWrite(async (tx) => {
+                await tx.run(
+                    `MATCH (cl:Closet { id: $closetId })
+                     MATCH (u:User { id: $userId })
+                     MERGE (u)-[:CO_CURATES]->(cl)`,
+                    { closetId: numericId, userId }
+                );
+            });
+
+            return await this.getClosetShares(closetId);
+        } catch (error) {
+            console.error(`Error sharing closet ${closetId} with user ${userId} in Neo4j:`, error);
+            throw new Error("Failed to share closet in Neo4j");
+        } finally {
+            await session.close();
+        }
+    }
+
+    async unshareCloset(closetId: string, userId: string): Promise<void> {
+        audit({
+            timestamp: new Date().toISOString(),
+            event: 'RELATIONSHIP_DELETE',
+            label: 'User-[:CO_CURATES]->Closet',
+            params: { closetId, userId },
+            source: 'Neo4jClosetRepository.unshareCloset',
+        });
+        const session = neogma.driver.session();
+        try {
+            const numericId = this.parseNumericId(closetId, "closet id");
+
+            await session.executeWrite(async (tx) => {
+                await tx.run(
+                    `MATCH (u:User { id: $userId })-[rel:CO_CURATES]->(cl:Closet { id: $closetId })
+                     DELETE rel`,
+                    { closetId: numericId, userId }
+                );
+            });
+        } catch (error) {
+            console.error(`Error unsharing closet ${closetId} from user ${userId} in Neo4j:`, error);
+            throw new Error("Failed to unshare closet in Neo4j");
+        } finally {
+            await session.close();
         }
     }
 

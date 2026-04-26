@@ -78,35 +78,49 @@ export class Neo4jCategoryRepository implements ICategoryRepository {
 
   async getCategoryItems(id: number): Promise<ClothingItem[]> {
     try {
-      const result = await neogma.queryRunner.run(`
-        MATCH (i:Item)-[:BELONGS_TO]->(cat:Category { id: $id })
-        OPTIONAL MATCH (i)-[:BELONGS_TO]->(b:Brand)
-        OPTIONAL MATCH (i)-[:HAS]->(img:Image)
-        RETURN i, collect(DISTINCT b) AS brands, collect(DISTINCT img) AS images
-      `, { id });
+      const result = await neogma.queryRunner.run(
+          `MATCH (i:Item)-[:BELONGS_TO]->(cat:Category { id: $id })
+         OPTIONAL MATCH (i)-[:MADE_BY]->(b:Brand)
+         OPTIONAL MATCH (i)-[:HAS]->(img:Image)
+         RETURN i, cat, collect(DISTINCT b) AS brands, collect(DISTINCT img) AS images`,
+          { id }
+      );
 
-      return result.records.map(record => {
-        const i = record.get('i').properties;
-        const brands = record.get('brands')
-          .filter((b: any) => b !== null)
-          .map((b: any) => ({ id: b.properties.id, name: b.properties.name }));
-        const images = record.get('images')
-          .filter((img: any) => img !== null)
-          .map((img: any) => ({ id: img.properties.id, url: img.properties.url }));
+      return result.records.map((record) => {
+        const i = record.get("i").properties;
+        const cat = record.get("cat")?.properties;
+
+        const brands = (record.get("brands") ?? [])
+            .filter((b: any) => b !== null)
+            .map((b: any) => ({
+              id: Number(b.properties.id),
+              name: String(b.properties.name),
+              country: { id: 0, name: "", countryCode: "" },
+            }));
+
+        const images = (record.get("images") ?? [])
+            .filter((img: any) => img !== null)
+            .map((img: any) => ({
+              id: Number(img.properties.id),
+              url: String(img.properties.url),
+            }));
 
         return {
           id: Number(i.id),
-          name: i.name,
+          name: String(i.name),
           price: i.price ?? null,
-          category: String(id),
+          category: {
+            categoryId: Number(cat?.id ?? id),
+            name: String(cat?.name ?? "Unknown"),
+          },
           brands,
           images,
-          fromDatabase: 'neo4j',
+          fromDatabase: "neo4j",
         };
       });
     } catch (error) {
       console.error(`Error fetching items for category ${id} from Neo4j:`, error);
-      throw new Error('Failed to fetch category items from Neo4j');
+      throw new Error("Failed to fetch category items from Neo4j");
     }
   }
 }
