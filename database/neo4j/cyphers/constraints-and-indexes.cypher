@@ -29,8 +29,6 @@ CREATE CONSTRAINT category_name_unique IF NOT EXISTS
 // Image
 CREATE CONSTRAINT image_id_unique IF NOT EXISTS
   FOR (img:Image) REQUIRE img.id IS UNIQUE;
-CREATE CONSTRAINT image_url_unique IF NOT EXISTS
-  FOR (img:Image) REQUIRE img.url IS UNIQUE;
 
 // User
 CREATE CONSTRAINT user_id_unique IF NOT EXISTS

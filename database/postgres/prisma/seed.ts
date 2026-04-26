@@ -193,13 +193,15 @@ async function seed() {
   ];
 
   await Promise.all(
-    Array.from({ length: CONFIG.reviews }, (_, i) => {
+    outfits.map((outfit) => {
+      // pick a reviewer that is not the outfit creator
+      const eligibleReviewers = users.filter((u) => u.id !== outfit.createdBy);
       return prisma.review.create({
         data: {
-          score:     Math.floor(Math.random() * 2) + 4, // 4 or 5
+          score:     Math.floor(Math.random() * 2) + 4,
           text:      pick(reviewTexts),
-          writtenBy: pick(users).id,
-          outfitId:  outfits[i % outfits.length].id,
+          writtenBy: pick(eligibleReviewers).id,
+          outfitId:  outfit.id,
         },
       });
     })
@@ -230,6 +232,34 @@ async function seed() {
     }
   }
 
+  // Assign 1-3 random images to each item
+const imageUrls = [
+  "https://images.unsplash.com/photo-1542291026-7eec264c27ff", // Nike shoe
+  "https://images.unsplash.com/photo-1523275335684-37898b6baf30", // watch
+  "https://images.unsplash.com/photo-1551488831-00ddcb6c6bd3", // jacket
+  "https://images.unsplash.com/photo-1434389677669-e08b4cac3105", // clothing
+  "https://images.unsplash.com/photo-1491553895911-0055eca6402d", // sneakers
+  "https://images.unsplash.com/photo-1560343090-f0409e92791a", // shoes
+  "https://images.unsplash.com/photo-1576566588028-4147f3842f27", // hoodie
+  "https://images.unsplash.com/photo-1548036328-c9fa89d128fa", // bag
+];
+
+console.log(`🌱 Seeding images for ${CONFIG.items} items...`);
+
+const seededImages = await Promise.all(
+  items.flatMap((item) => {
+    const count = Math.floor(Math.random() * 3) + 1; // 1-3 images per item
+    return Array.from({ length: count }, () =>
+      prisma.image.create({
+        data: {
+          url:    `${pick(imageUrls)}?item=${item.id}`,  // query param keeps URLs unique
+          itemId: item.id,
+        },
+      })
+    );
+  })
+);
+
   // ── Summary ───────────────────────────────────────────────────────────────
   console.log("✅ Stress seed complete!");
   console.table({
@@ -243,8 +273,9 @@ async function seed() {
     closetItems: closetItemsCreated.length,
     outfits: users.length * CONFIG.outfitsPerUser,
     outfitItems:   users.length * CONFIG.outfitsPerUser * CONFIG.itemsPerOutfit,
-    reviews:       CONFIG.reviews,
+    reviews:       outfits.length, //only 1 reviev per outfit
     sharedClosets: sharedClosetCount,
+    images: seededImages.length
   });
 }
 

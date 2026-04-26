@@ -36,7 +36,6 @@ function buildImageModel() {
         },
         url: {
           type: "string",
-          unique: true,
           required: true,
         },
       },
