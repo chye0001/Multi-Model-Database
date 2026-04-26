@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import { Closet } from "../../database/mongo/models/closets/Closet.model.js";
 import { Item } from "../../database/mongo/models/clothings/Item.model.js";
 import { User } from "../../database/mongo/models/users/User.model.js";
@@ -8,7 +9,6 @@ import type { Closet as ClosetDTO } from "../../dtos/closets/Closet.dto.js";
 import type { ClothingItem } from "../../dtos/items/Item.dto.js";
 import { audit } from "../../utils/audit/AuditLogger.ts";
 import type { EmbeddedUser } from "../../dtos/users/User.dto.js";
-
 
 export class MongoClosetRepository implements IClosetRepository {
     async getAllClosets(): Promise<ClosetDTO[]> {
@@ -42,48 +42,59 @@ export class MongoClosetRepository implements IClosetRepository {
     async createCloset(data: { name: string; description?: string; isPublic: boolean; userId: string }): Promise<ClosetDTO[]> {
         audit({
             timestamp: new Date().toISOString(),
-            event: 'DOCUMENT_CREATE',
-            label: 'Closet',
+            event: "DOCUMENT_CREATE",
+            label: "Closet",
             params: { name: data.name, isPublic: data.isPublic, userId: data.userId },
-            source: 'MongoClosetRepository.createCloset',
+            source: "MongoClosetRepository.createCloset",
         });
 
+        const session = await mongoose.startSession();
         try {
-            const owner = await User.findOne({ id: data.userId }).exec();
-            if (!owner) throw new Error(`User not found: ${data.userId}`);
+            let created: any = null;
 
-            const lastCloset = await Closet.findOne().sort({ id: -1 }).exec();
-            const nextId = (lastCloset?.id ?? 0) + 1;
+            await session.withTransaction(async () => {
+                const owner = await User.findOne({ id: data.userId }).session(session).exec();
+                if (!owner) throw new Error(`User not found: ${data.userId}`);
 
-            const newCloset = new Closet({
-                id: nextId,
-                name: data.name,
-                description: data.description ?? null,
-                isPublic: data.isPublic,
-                userId: owner._id,
-                itemIds: [],
-                sharedWith: [],
+                const lastCloset = await Closet.findOne().sort({ id: -1 }).session(session).lean().exec();
+                const nextId = (lastCloset?.id ?? 0) + 1;
+
+                await Closet.create([{
+                    id: nextId,
+                    name: data.name,
+                    description: data.description ?? null,
+                    isPublic: data.isPublic,
+                    userId: owner._id,
+                    itemIds: [],
+                    sharedWith: [],
+                }], { session });
+
+                created = await Closet.findOne({ id: nextId })
+                    .session(session)
+                    .populate("userId")
+                    .populate("itemIds")
+                    .exec();
             });
 
-            const savedCloset = await newCloset.save();
-            const populated = await savedCloset.populate("userId itemIds");
-            return [formatUserCloset(populated, "mongodb")];
+            if (!created) return [];
+            return [formatUserCloset(created, "mongodb")];
         } catch (error) {
             console.error("Error creating closet in MongoDB:", error);
             throw new Error("Failed to create closet in MongoDB");
+        } finally {
+            await session.endSession();
         }
     }
-
 
     async updateCloset(id: string, data: Partial<{ name: string; description: string; isPublic: boolean }>): Promise<ClosetDTO[]> {
         audit({
             timestamp: new Date().toISOString(),
-            event: 'DOCUMENT_UPDATE',
-            label: 'Closet',
+            event: "DOCUMENT_UPDATE",
+            label: "Closet",
             params: { id, ...data },
-            source: 'MongoClosetRepository.updateCloset',
+            source: "MongoClosetRepository.updateCloset",
         });
-        
+
         try {
             const numericId = this.parseNumericId(id, "closet id");
             const patch: Partial<{ name: string; description: string; isPublic: boolean }> = {};
@@ -106,10 +117,10 @@ export class MongoClosetRepository implements IClosetRepository {
     async deleteCloset(id: string): Promise<void> {
         audit({
             timestamp: new Date().toISOString(),
-            event: 'DOCUMENT_DELETE',
-            label: 'Closet',
+            event: "DOCUMENT_DELETE",
+            label: "Closet",
             params: { id },
-            source: 'MongoClosetRepository.deleteCloset',
+            source: "MongoClosetRepository.deleteCloset",
         });
 
         try {
@@ -138,65 +149,86 @@ export class MongoClosetRepository implements IClosetRepository {
     async addItemToCloset(closetId: string, itemId: string): Promise<ClosetDTO[]> {
         audit({
             timestamp: new Date().toISOString(),
-            event: 'DOCUMENT_UPDATE',
-            label: 'Closet.itemIds',
-            params: { closetId, itemId, operation: 'addToSet' },
-            source: 'MongoClosetRepository.addItemToCloset',
+            event: "DOCUMENT_UPDATE",
+            label: "Closet.itemIds",
+            params: { closetId, itemId, operation: "addToSet" },
+            source: "MongoClosetRepository.addItemToCloset",
         });
 
+        const session = await mongoose.startSession();
         try {
-            const numericClosetId = this.parseNumericId(closetId, "closet id");
-            const numericItemId = this.parseNumericId(itemId, "item id");
+            let updated: any = null;
 
-            const item = await Item.findOne({ id: numericItemId }).exec();
-            if (!item) return [];
+            await session.withTransaction(async () => {
+                const numericClosetId = this.parseNumericId(closetId, "closet id");
+                const numericItemId = this.parseNumericId(itemId, "item id");
 
-            const closet = await Closet.findOneAndUpdate(
-                { id: numericClosetId },
-                { $addToSet: { itemIds: item._id } },
-                { new: true }
-            )
-                .populate("userId itemIds")
-                .exec();
+                const item = await Item.findOne({ id: numericItemId }).session(session).exec();
+                if (!item) {
+                    updated = null;
+                    return;
+                }
 
-            if (!closet) return [];
-            return [formatUserCloset(closet, "mongodb")];
+                updated = await Closet.findOneAndUpdate(
+                    { id: numericClosetId },
+                    { $addToSet: { itemIds: item._id } },
+                    { new: true, session }
+                )
+                    .populate("userId")
+                    .populate("itemIds")
+                    .exec();
+            });
+
+            if (!updated) return [];
+            return [formatUserCloset(updated, "mongodb")];
         } catch (error) {
             console.error(`Error adding item ${itemId} to closet ${closetId} in MongoDB:`, error);
             throw new Error("Failed to add item to closet in MongoDB");
+        } finally {
+            await session.endSession();
         }
     }
-
 
     async removeItemFromCloset(closetId: string, itemId: string): Promise<ClosetDTO[]> {
         audit({
             timestamp: new Date().toISOString(),
-            event: 'DOCUMENT_UPDATE',
-            label: 'Closet.itemIds',
-            params: { closetId, itemId, operation: 'pull' },
-            source: 'MongoClosetRepository.removeItemFromCloset',
+            event: "DOCUMENT_UPDATE",
+            label: "Closet.itemIds",
+            params: { closetId, itemId, operation: "pull" },
+            source: "MongoClosetRepository.removeItemFromCloset",
         });
-        
+
+        const session = await mongoose.startSession();
         try {
-            const numericClosetId = this.parseNumericId(closetId, "closet id");
-            const numericItemId = this.parseNumericId(itemId, "item id");
+            let updated: any = null;
 
-            const item = await Item.findOne({ id: numericItemId }).exec();
-            if (!item) return [];
+            await session.withTransaction(async () => {
+                const numericClosetId = this.parseNumericId(closetId, "closet id");
+                const numericItemId = this.parseNumericId(itemId, "item id");
 
-            const closet = await Closet.findOneAndUpdate(
-                { id: numericClosetId },
-                { $pull: { itemIds: item._id } },
-                { new: true }
-            )
-                .populate("userId itemIds")
-                .exec();
+                const item = await Item.findOne({ id: numericItemId }).session(session).exec();
+                if (!item) {
+                    updated = null;
+                    return;
+                }
 
-            if (!closet) return [];
-            return [formatUserCloset(closet, "mongodb")];
+                updated = await Closet.findOneAndUpdate(
+                    { id: numericClosetId },
+                    { $pull: { itemIds: item._id } },
+                    { new: true, session }
+                )
+                    .populate("userId")
+                    .populate("itemIds")
+                    .exec();
+            });
+
+            if (!updated) return [];
+            return [formatUserCloset(updated, "mongodb")];
         } catch (error) {
             console.error(`Error removing item ${itemId} from closet ${closetId} in MongoDB:`, error);
             throw new Error("Failed to remove item from closet in MongoDB");
+        } finally {
+            await session.endSession();
         }
     }
 
@@ -217,40 +249,88 @@ export class MongoClosetRepository implements IClosetRepository {
     }
 
     async getClosetShares(closetId: string): Promise<EmbeddedUser[]> {
-    try {
-        const numericId = this.parseNumericId(closetId, "closet id");
-        const closet = await Closet.findOne({ id: numericId }).lean().exec() as any;
-        if (!closet) return [];
-        return (closet.sharedWith ?? []).map((u: any) => ({
-            id: u.id, firstName: u.firstName, lastName: u.lastName, email: u.email,
-        }));
-    } catch (error) {
-        console.error(`Error fetching shares for closet ${closetId} from MongoDB:`, error);
-        throw new Error("Failed to fetch closet shares from MongoDB");
+        try {
+            const numericId = this.parseNumericId(closetId, "closet id");
+            const closet = await Closet.findOne({ id: numericId }).lean().exec() as any;
+            if (!closet) return [];
+            return (closet.sharedWith ?? []).map((u: any) => ({
+                id: u.id,
+                firstName: u.firstName,
+                lastName: u.lastName,
+                email: u.email,
+            }));
+        } catch (error) {
+            console.error(`Error fetching shares for closet ${closetId} from MongoDB:`, error);
+            throw new Error("Failed to fetch closet shares from MongoDB");
         }
     }
 
     async shareCloset(closetId: string, userId: string): Promise<EmbeddedUser[]> {
-        audit({ timestamp: new Date().toISOString(), event: 'DOCUMENT_UPDATE', label: 'Closet.sharedWith', params: { closetId, userId, operation: 'addToSet' }, source: 'MongoClosetRepository.shareCloset' });
+        audit({
+            timestamp: new Date().toISOString(),
+            event: "DOCUMENT_UPDATE",
+            label: "Closet.sharedWith",
+            params: { closetId, userId, operation: "addToSet" },
+            source: "MongoClosetRepository.shareCloset",
+        });
+
+        const session = await mongoose.startSession();
         try {
-            const numericId = this.parseNumericId(closetId, "closet id");
-            const user = await User.findOne({ id: userId }).lean().exec() as any;
-            if (!user) throw new Error(`User ${userId} not found`);
-            const snapshot = { id: user.id, firstName: user.firstName, lastName: user.lastName, email: user.email };
-            const already = await Closet.findOne({ id: numericId, "sharedWith.id": userId }).lean().exec();
-            if (!already) {
-                await Closet.findOneAndUpdate({ id: numericId }, { $push: { sharedWith: snapshot } }).exec();
-            }
-            return await this.getClosetShares(closetId);
+            let shares: EmbeddedUser[] = [];
+
+            await session.withTransaction(async () => {
+                const numericId = this.parseNumericId(closetId, "closet id");
+
+                const user = await User.findOne({ id: userId }).session(session).lean().exec() as any;
+                if (!user) throw new Error(`User ${userId} not found`);
+
+                const snapshot = {
+                    id: user.id,
+                    firstName: user.firstName,
+                    lastName: user.lastName,
+                    email: user.email,
+                };
+
+                const already = await Closet.findOne({ id: numericId, "sharedWith.id": userId })
+                    .session(session)
+                    .lean()
+                    .exec();
+
+                if (!already) {
+                    await Closet.findOneAndUpdate(
+                        { id: numericId },
+                        { $push: { sharedWith: snapshot } },
+                        { session }
+                    ).exec();
+                }
+
+                const closet = await Closet.findOne({ id: numericId }).session(session).lean().exec() as any;
+                shares = (closet?.sharedWith ?? []).map((u: any) => ({
+                    id: u.id,
+                    firstName: u.firstName,
+                    lastName: u.lastName,
+                    email: u.email,
+                }));
+            });
+
+            return shares;
         } catch (error) {
             console.error(`Error sharing closet ${closetId} with user ${userId} in MongoDB:`, error);
             throw new Error("Failed to share closet in MongoDB");
+        } finally {
+            await session.endSession();
         }
     }
 
-
     async unshareCloset(closetId: string, userId: string): Promise<void> {
-        audit({ timestamp: new Date().toISOString(), event: 'DOCUMENT_UPDATE', label: 'Closet.sharedWith', params: { closetId, userId, operation: 'pull' }, source: 'MongoClosetRepository.unshareCloset' });
+        audit({
+            timestamp: new Date().toISOString(),
+            event: "DOCUMENT_UPDATE",
+            label: "Closet.sharedWith",
+            params: { closetId, userId, operation: "pull" },
+            source: "MongoClosetRepository.unshareCloset",
+        });
+
         try {
             const numericId = this.parseNumericId(closetId, "closet id");
             await Closet.findOneAndUpdate({ id: numericId }, { $pull: { sharedWith: { id: userId } } }).exec();

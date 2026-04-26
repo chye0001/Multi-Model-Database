@@ -62,7 +62,7 @@ export class PostgresClosetRepository implements IClosetRepository {
         }
     }
 
-     async createCloset(data: { name: string; description?: string; isPublic: boolean; userId: string }): Promise<Closet[]> {
+    async createCloset(data: { name: string; description?: string; isPublic: boolean; userId: string }): Promise<Closet[]> {
         audit({
             timestamp: new Date().toISOString(),
             event: 'ROW_INSERT',
@@ -95,7 +95,7 @@ export class PostgresClosetRepository implements IClosetRepository {
             params: { id, ...data },
             source: 'PostgresClosetRepository.updateCloset',
         });
-        
+
         try {
             const numericId = BigInt(id);
             const patch: Partial<{ name: string; description: string | null; isPublic: boolean }> = {};
@@ -116,7 +116,7 @@ export class PostgresClosetRepository implements IClosetRepository {
         }
     }
 
-     async deleteCloset(id: string): Promise<void> {
+    async deleteCloset(id: string): Promise<void> {
         audit({
             timestamp: new Date().toISOString(),
             event: 'ROW_DELETE',
@@ -174,26 +174,33 @@ export class PostgresClosetRepository implements IClosetRepository {
         });
 
         try {
-            const numericClosetId = BigInt(closetId);
-            const numericItemId = BigInt(itemId);
+            const result = await prisma.$transaction(async (tx) => {
+                const numericClosetId = BigInt(closetId);
+                const numericItemId = BigInt(itemId);
 
-            const existing = await prisma.closetItem.findUnique({
-                where: { itemId_closetId: { itemId: numericItemId, closetId: numericClosetId } },
-            });
-
-            if (!existing) {
-                await prisma.closetItem.create({
-                    data: { itemId: numericItemId, closetId: numericClosetId },
+                const existing = await tx.closetItem.findUnique({
+                    where: { itemId_closetId: { itemId: numericItemId, closetId: numericClosetId } },
                 });
-            }
 
-            const closet = await prisma.closet.findUnique({
-                where: { id: numericClosetId },
-                include: closetInclude,
+                if (!existing) {
+                    await tx.closetItem.create({
+                        data: { itemId: numericItemId, closetId: numericClosetId },
+                    });
+                }
+
+                const closet = await tx.closet.findUnique({
+                    where: { id: numericClosetId },
+                    include: closetInclude,
+                });
+
+                if (!closet) {
+                    throw new Error(`Closet with id "${closetId}" not found after operation`);
+                }
+
+                return closet;
             });
 
-            if (!closet) return [];
-            return [formatUserCloset(closet, "postgresql")];
+            return [formatUserCloset(result, "postgresql")];
         } catch (error) {
             console.error(`Error adding item ${itemId} to closet ${closetId} in PostgreSQL:`, error);
             throw new Error("Failed to add item to closet in PostgreSQL");
@@ -208,22 +215,29 @@ export class PostgresClosetRepository implements IClosetRepository {
             params: { closetId, itemId },
             source: 'PostgresClosetRepository.removeItemFromCloset',
         });
-        
+
         try {
-            const numericClosetId = BigInt(closetId);
-            const numericItemId = BigInt(itemId);
+            const result = await prisma.$transaction(async (tx) => {
+                const numericClosetId = BigInt(closetId);
+                const numericItemId = BigInt(itemId);
 
-            await prisma.closetItem.delete({
-                where: { itemId_closetId: { itemId: numericItemId, closetId: numericClosetId } },
+                await tx.closetItem.delete({
+                    where: { itemId_closetId: { itemId: numericItemId, closetId: numericClosetId } },
+                });
+
+                const closet = await tx.closet.findUnique({
+                    where: { id: numericClosetId },
+                    include: closetInclude,
+                });
+
+                if (!closet) {
+                    throw new Error(`Closet with id "${closetId}" not found after operation`);
+                }
+
+                return closet;
             });
 
-            const closet = await prisma.closet.findUnique({
-                where: { id: numericClosetId },
-                include: closetInclude,
-            });
-
-            if (!closet) return [];
-            return [formatUserCloset(closet, "postgresql")];
+            return [formatUserCloset(result, "postgresql")];
         } catch (error) {
             console.error(`Error removing item ${itemId} from closet ${closetId} in PostgreSQL:`, error);
             throw new Error("Failed to remove item from closet in PostgreSQL");
@@ -263,15 +277,38 @@ export class PostgresClosetRepository implements IClosetRepository {
     }
 
     async shareCloset(closetId: string, userId: string): Promise<EmbeddedUser[]> {
-        audit({ timestamp: new Date().toISOString(), event: 'ROW_INSERT', label: 'shared_closets', params: { closetId, userId }, source: 'PostgresClosetRepository.shareCloset' });
+        audit({
+            timestamp: new Date().toISOString(),
+            event: 'ROW_INSERT',
+            label: 'shared_closets',
+            params: { closetId, userId },
+            source: 'PostgresClosetRepository.shareCloset'
+        });
+
         try {
-            const numericId = BigInt(closetId);
-            await prisma.sharedCloset.upsert({
-                where: { closetId_userId: { closetId: numericId, userId } },
-                create: { closetId: numericId, userId },
-                update: {},
+            const result = await prisma.$transaction(async (tx) => {
+                const numericId = BigInt(closetId);
+
+                await tx.sharedCloset.upsert({
+                    where: { closetId_userId: { closetId: numericId, userId } },
+                    create: { closetId: numericId, userId },
+                    update: {},
+                });
+
+                const rows = await tx.sharedCloset.findMany({
+                    where: { closetId: numericId },
+                    include: { user: true },
+                });
+
+                return rows.map((r) => ({
+                    id: r.user.id,
+                    firstName: r.user.firstName,
+                    lastName: r.user.lastName,
+                    email: r.user.email,
+                }));
             });
-            return await this.getClosetShares(closetId);
+
+            return result;
         } catch (error) {
             console.error(`Error sharing closet ${closetId} with user ${userId} in PostgreSQL:`, error);
             throw new Error("Failed to share closet in PostgreSQL");
@@ -279,7 +316,14 @@ export class PostgresClosetRepository implements IClosetRepository {
     }
 
     async unshareCloset(closetId: string, userId: string): Promise<void> {
-        audit({ timestamp: new Date().toISOString(), event: 'ROW_DELETE', label: 'shared_closets', params: { closetId, userId }, source: 'PostgresClosetRepository.unshareCloset' });
+        audit({
+            timestamp: new Date().toISOString(),
+            event: 'ROW_DELETE',
+            label: 'shared_closets',
+            params: { closetId, userId },
+            source: 'PostgresClosetRepository.unshareCloset'
+        });
+
         try {
             const numericId = BigInt(closetId);
             await prisma.sharedCloset.delete({
@@ -291,4 +335,3 @@ export class PostgresClosetRepository implements IClosetRepository {
         }
     }
 }
-

@@ -153,36 +153,49 @@ export class PostgresOutfitRepository implements IOutfitRepository {
 
     async addItemToOutfit(id: string, itemId: string): Promise<Outfit[]> {
         try {
-            const outfitId = this.parseBigIntId(id, "outfit id");
-            const numericItemId = this.parseBigIntId(itemId, "item id");
+            const result = await prisma.$transaction(async (tx) => {
+                const outfitId = this.parseBigIntId(id, "outfit id");
+                const numericItemId = this.parseBigIntId(itemId, "item id");
 
-            const item = await prisma.item.findUnique({
-                where: { id: numericItemId },
-            });
-            if (!item) throw new Error(`Item with id "${itemId}" not found`);
+                const item = await tx.item.findUnique({
+                    where: { id: numericItemId },
+                });
+                if (!item) throw new Error(`Item with id "${itemId}" not found`);
 
-            const closetItem = await prisma.closetItem.findFirst({
-                where: { itemId: numericItemId },
-            });
-            if (!closetItem) throw new Error(`Item with id "${itemId}" is not in any closet`);
+                const closetItem = await tx.closetItem.findFirst({
+                    where: { itemId: numericItemId },
+                });
+                if (!closetItem) throw new Error(`Item with id "${itemId}" is not in any closet`);
 
-            const existing = await prisma.outfitItem.findFirst({
-                where: {
-                    outfitId,
-                    closetItemId: closetItem.id,
-                },
-            });
-
-            if (!existing) {
-                await prisma.outfitItem.create({
-                    data: {
+                const existing = await tx.outfitItem.findFirst({
+                    where: {
                         outfitId,
                         closetItemId: closetItem.id,
                     },
                 });
-            }
 
-            return await this.getOutfitById(id);
+                if (!existing) {
+                    await tx.outfitItem.create({
+                        data: {
+                            outfitId,
+                            closetItemId: closetItem.id,
+                        },
+                    });
+                }
+
+                const outfit = await tx.outfit.findUnique({
+                    where: { id: outfitId },
+                    include: outfitInclude,
+                });
+
+                if (!outfit) {
+                    throw new Error(`Outfit with id "${id}" not found after operation`);
+                }
+
+                return outfit;
+            });
+
+            return [formatUserOutfit(result, "postgresql")];
         } catch (error) {
             console.error(`Error adding item ${itemId} to outfit ${id} in PostgreSQL:`, error);
             throw new Error("Failed to add item to outfit in PostgreSQL");
@@ -191,22 +204,36 @@ export class PostgresOutfitRepository implements IOutfitRepository {
 
     async removeItemFromOutfit(id: string, itemId: string): Promise<Outfit[]> {
         try {
-            const outfitId = this.parseBigIntId(id, "outfit id");
-            const numericItemId = this.parseBigIntId(itemId, "item id");
+            const result = await prisma.$transaction(async (tx) => {
+                const outfitId = this.parseBigIntId(id, "outfit id");
+                const numericItemId = this.parseBigIntId(itemId, "item id");
 
-            const closetItem = await prisma.closetItem.findFirst({
-                where: { itemId: numericItemId },
+                const closetItem = await tx.closetItem.findFirst({
+                    where: { itemId: numericItemId },
+                });
+
+                if (closetItem) {
+                    await tx.outfitItem.deleteMany({
+                        where: {
+                            outfitId,
+                            closetItemId: closetItem.id,
+                        },
+                    });
+                }
+
+                const outfit = await tx.outfit.findUnique({
+                    where: { id: outfitId },
+                    include: outfitInclude,
+                });
+
+                if (!outfit) {
+                    throw new Error(`Outfit with id "${id}" not found after operation`);
+                }
+
+                return outfit;
             });
-            if (!closetItem) return await this.getOutfitById(id);
 
-            await prisma.outfitItem.deleteMany({
-                where: {
-                    outfitId,
-                    closetItemId: closetItem.id,
-                },
-            });
-
-            return await this.getOutfitById(id);
+            return [formatUserOutfit(result, "postgresql")];
         } catch (error) {
             console.error(`Error removing item ${itemId} from outfit ${id} in PostgreSQL:`, error);
             throw new Error("Failed to remove item from outfit in PostgreSQL");
@@ -247,18 +274,18 @@ export class PostgresOutfitRepository implements IOutfitRepository {
             };
 
             const rows = await prisma.$queryRaw<Row[]>`
-      SELECT
-        id,
-        name,
-        style,
-        "dateAdded" AS "dateAdded",
-        "firstName" AS "firstName",
-        "lastName" AS "lastName",
-        item_count::bigint AS "itemCount"
-      FROM outfit_overview
-      WHERE ${style ?? null}::text IS NULL OR style = ${style ?? null}
-      ORDER BY "dateAdded" DESC
-    `;
+                SELECT
+                    id,
+                    name,
+                    style,
+                    "dateAdded" AS "dateAdded",
+                    "firstName" AS "firstName",
+                    "lastName" AS "lastName",
+                    item_count::bigint AS "itemCount"
+                FROM outfit_overview
+                WHERE ${style ?? null}::text IS NULL OR style = ${style ?? null}
+                ORDER BY "dateAdded" DESC
+            `;
 
             return rows.map((r) => ({
                 id: Number(r.id),
@@ -293,5 +320,4 @@ export class PostgresOutfitRepository implements IOutfitRepository {
             throw new Error("Failed to calculate outfit price in PostgreSQL");
         }
     }
-
 }

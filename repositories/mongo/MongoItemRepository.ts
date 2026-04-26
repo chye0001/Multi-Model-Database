@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import { Item, Brand, Category } from '../../database/mongo/models/index.js';
 import { formatClothingItem } from '../../utils/repository_utils/ObjectFormatters.js';
 import type { IItemRepository, ItemFilters } from '../interfaces/IItemRepository.js';
@@ -37,23 +38,36 @@ export class MongoItemRepository implements IItemRepository {
   }
 
   async createItem(data: { name: string; price?: number; categoryId: number }): Promise<ClothingItem[]> {
+    const session = await mongoose.startSession();
     try {
-      const category = await Category.findOne({ id: data.categoryId }).lean().exec() as any;
-      if (!category) throw new Error(`Category ${data.categoryId} not found`);
-      const last = await Item.findOne().sort({ id: -1 }).lean().exec() as any;
-      const nextId = (last?.id ?? 0) + 1;
-      const item = await Item.create({
-        id: nextId,
-        name: data.name,
-        price: data.price ?? null,
-        category: { categoryId: category.id, name: category.name },
-        brands: [],
-        images: [],
+      let created: any = null;
+
+      await session.withTransaction(async () => {
+        const category = await Category.findOne({ id: data.categoryId }).session(session).lean().exec() as any;
+        if (!category) throw new Error(`Category ${data.categoryId} not found`);
+
+        const last = await Item.findOne().sort({ id: -1 }).session(session).lean().exec() as any;
+        const nextId = (last?.id ?? 0) + 1;
+
+        await Item.create([{
+          id: nextId,
+          name: data.name,
+          price: data.price ?? null,
+          category: { categoryId: category.id, name: category.name },
+          brands: [],
+          images: [],
+        }], { session });
+
+        created = await Item.findOne({ id: nextId }).session(session).lean().exec() as any;
       });
-      return [{ ...formatClothingItem(item.toObject(), 'mongodb'), fromDatabase: 'mongodb' }];
+
+      if (!created) return [];
+      return [{ ...formatClothingItem(created, 'mongodb'), fromDatabase: 'mongodb' }];
     } catch (error) {
       console.error('Error creating item in MongoDB:', error);
       throw new Error('Failed to create item in MongoDB');
+    } finally {
+      await session.endSession();
     }
   }
 
@@ -97,21 +111,38 @@ export class MongoItemRepository implements IItemRepository {
   }
 
   async addImageToItem(id: number, data: { url: string }): Promise<ItemImage[]> {
+    const session = await mongoose.startSession();
     try {
-      const allItems = await Item.find({ 'images.0': { $exists: true } }).lean().exec() as any[];
-      const maxImgId = allItems.reduce((max: number, item: any) =>
-        (item.images ?? []).reduce((m: number, img: any) => Math.max(m, Number(img.id)), max), 0);
-      const nextId = maxImgId + 1;
-      const item = await Item.findOneAndUpdate(
-        { id },
-        { $push: { images: { id: nextId, url: data.url } } },
-        { new: true }
-      ).lean().exec() as any;
-      if (!item) throw new Error(`Item ${id} not found`);
-      return (item.images ?? []).map((img: any) => ({ id: Number(img.id), url: img.url }));
+      let output: ItemImage[] = [];
+
+      await session.withTransaction(async () => {
+        const allItems = await Item.find({ 'images.0': { $exists: true } }).session(session).lean().exec() as any[];
+        const maxImgId = allItems.reduce(
+            (max: number, item: any) => (item.images ?? []).reduce((m: number, img: any) => Math.max(m, Number(img.id)), max),
+            0
+        );
+        const nextId = maxImgId + 1;
+
+        const item = await Item.findOneAndUpdate(
+            { id },
+            { $push: { images: { id: nextId, url: data.url } } },
+            { new: true, session }
+        ).lean().exec() as any;
+
+        if (!item) throw new Error(`Item ${id} not found`);
+
+        output = (item.images ?? []).map((img: any) => ({
+          id: Number(img.id),
+          url: img.url,
+        }));
+      });
+
+      return output;
     } catch (error) {
       console.error(`Error adding image to item ${id} in MongoDB:`, error);
       throw new Error('Failed to add image to item in MongoDB');
+    } finally {
+      await session.endSession();
     }
   }
 
@@ -141,20 +172,43 @@ export class MongoItemRepository implements IItemRepository {
   }
 
   async addBrandToItem(id: number, brandId: number): Promise<BrandDto[]> {
+    const session = await mongoose.startSession();
     try {
-      const brand = await Brand.findOne({ id: brandId }).lean().exec() as any;
-      if (!brand) throw new Error(`Brand ${brandId} not found`);
-      const existing = await Item.findOne({ id, 'brands.id': brandId }).lean().exec();
-      if (!existing) {
-        await Item.findOneAndUpdate(
-          { id },
-          { $push: { brands: { id: brand.id, name: brand.name, country: brand.country ?? { id: 0, name: '', countryCode: '' } } } }
-        ).exec();
-      }
-      return await this.getItemBrands(id);
+      let output: BrandDto[] = [];
+
+      await session.withTransaction(async () => {
+        const brand = await Brand.findOne({ id: brandId }).session(session).lean().exec() as any;
+        if (!brand) throw new Error(`Brand ${brandId} not found`);
+
+        const existing = await Item.findOne({ id, 'brands.id': brandId }).session(session).lean().exec();
+        if (!existing) {
+          await Item.findOneAndUpdate(
+              { id },
+              { $push: { brands: { id: brand.id, name: brand.name, country: brand.country ?? { id: 0, name: '', countryCode: '' } } } },
+              { session }
+          ).exec();
+        }
+
+        const item = await Item.findOne({ id }).session(session).lean().exec() as any;
+        if (!item) {
+          output = [];
+          return;
+        }
+
+        output = (item.brands ?? []).map((b: any) => ({
+          id: Number(b.id),
+          name: b.name,
+          country: b.country ?? { id: 0, name: '', countryCode: '' },
+          fromDatabase: 'mongodb',
+        }));
+      });
+
+      return output;
     } catch (error) {
       console.error(`Error adding brand ${brandId} to item ${id} in MongoDB:`, error);
       throw new Error('Failed to add brand to item in MongoDB');
+    } finally {
+      await session.endSession();
     }
   }
 
@@ -171,7 +225,6 @@ export class MongoItemRepository implements IItemRepository {
     try {
       const foundItems = await Item.find({ price: { $gt: price } });
       return foundItems.map(item => formatClothingItem(item, "mongodb"));
-      
     } catch (error) {
       console.error(`Unexpected error when getting items with price greater than: ${price}`);
       console.error(error);

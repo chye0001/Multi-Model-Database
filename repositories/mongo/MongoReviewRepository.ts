@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import { Outfit, User } from "../../database/mongo/models/index.js";
 import { formatUserReview } from "../../utils/repository_utils/ObjectFormatters.js";
 
@@ -22,47 +23,63 @@ export class MongoReviewRepository implements IReviewRepository {
     }
 
     async createReview(data: { score: number; text: string; outfitId: string; writtenBy: string }): Promise<Review[]> {
-        const outfitId = this.parseNumericId(data.outfitId, "outfit id");
+        const session = await mongoose.startSession();
+        try {
+            let createdId: number | null = null;
 
-        const user = await User.findOne({ id: data.writtenBy })
-            .select("id firstName lastName email")
-            .lean()
-            .exec();
-        if (!user) throw new Error(`User "${data.writtenBy}" not found`);
+            await session.withTransaction(async () => {
+                const outfitId = this.parseNumericId(data.outfitId, "outfit id");
 
-        const outfit = await Outfit.findOne({ id: outfitId }).lean().exec();
-        if (!outfit) throw new Error(`Outfit "${data.outfitId}" not found`);
+                const user = await User.findOne({ id: data.writtenBy })
+                    .select("id firstName lastName email")
+                    .session(session)
+                    .lean()
+                    .exec();
+                if (!user) throw new Error(`User "${data.writtenBy}" not found`);
 
-        const max = await Outfit.aggregate([
-            { $unwind: "$reviews" },
-            { $sort: { "reviews.id": -1 } },
-            { $limit: 1 },
-            { $project: { _id: 0, maxId: "$reviews.id" } },
-        ]).exec();
+                const outfit = await Outfit.findOne({ id: outfitId }).session(session).lean().exec();
+                if (!outfit) throw new Error(`Outfit "${data.outfitId}" not found`);
 
-        const nextId = Number(max[0]?.maxId ?? 0) + 1;
+                const max = await Outfit.aggregate([
+                    { $unwind: "$reviews" },
+                    { $sort: { "reviews.id": -1 } },
+                    { $limit: 1 },
+                    { $project: { _id: 0, maxId: "$reviews.id" } },
+                ]).session(session).exec();
 
-        await Outfit.updateOne(
-            { id: outfitId },
-            {
-                $push: {
-                    reviews: {
-                        id: nextId,
-                        score: data.score,
-                        text: data.text,
-                        writtenBy: {
-                            id: user.id,
-                            firstName: user.firstName,
-                            lastName: user.lastName,
-                            email: user.email,
+                const nextId = Number(max[0]?.maxId ?? 0) + 1;
+                createdId = nextId;
+
+                await Outfit.updateOne(
+                    { id: outfitId },
+                    {
+                        $push: {
+                            reviews: {
+                                id: nextId,
+                                score: data.score,
+                                text: data.text,
+                                writtenBy: {
+                                    id: user.id,
+                                    firstName: user.firstName,
+                                    lastName: user.lastName,
+                                    email: user.email,
+                                },
+                                dateWritten: new Date(),
+                            },
                         },
-                        dateWritten: new Date(),
                     },
-                },
-            }
-        ).exec();
+                    { session }
+                ).exec();
+            });
 
-        return this.getReviewById(String(nextId));
+            if (!createdId) return [];
+            return this.getReviewById(String(createdId));
+        } catch (error) {
+            console.error("Error creating review in MongoDB:", error);
+            throw new Error("Failed to create review in MongoDB");
+        } finally {
+            await session.endSession();
+        }
     }
 
     async updateReview(id: string, data: Partial<{ score: number; text: string }>): Promise<Review[]> {

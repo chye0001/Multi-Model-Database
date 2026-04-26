@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import { Outfit, User, Item } from "../../database/mongo/models/index.js";
 import { formatUserOutfit } from "../../utils/repository_utils/ObjectFormatters.js";
 
@@ -42,35 +43,46 @@ export class MongoOutfitRepository implements IOutfitRepository {
     }
 
     async createOutfit(data: CreateOutfitRequest): Promise<OutfitDto[]> {
+        const session = await mongoose.startSession();
         try {
-            const user = await User.findOne({ id: data.createdBy })
-                .select("id firstName lastName email")
-                .lean()
-                .exec();
+            let created: any = null;
 
-            if (!user) throw new Error(`User with id "${data.createdBy}" not found`);
+            await session.withTransaction(async () => {
+                const user = await User.findOne({ id: data.createdBy })
+                    .select("id firstName lastName email")
+                    .session(session)
+                    .lean()
+                    .exec();
 
-            const max = await Outfit.findOne().sort({ id: -1 }).lean().exec();
-            const nextId = max ? max.id + 1 : 1;
+                if (!user) throw new Error(`User with id "${data.createdBy}" not found`);
 
-            await Outfit.create({
-                id: nextId,
-                name: data.name,
-                style: data.style,
-                createdBy: {
-                    id: user.id,
-                    firstName: user.firstName,
-                    lastName: user.lastName,
-                    email: user.email,
-                },
-                items: [],
-                reviews: [],
+                const max = await Outfit.findOne().sort({ id: -1 }).session(session).lean().exec();
+                const nextId = max ? max.id + 1 : 1;
+
+                await Outfit.create([{
+                    id: nextId,
+                    name: data.name,
+                    style: data.style,
+                    createdBy: {
+                        id: user.id,
+                        firstName: user.firstName,
+                        lastName: user.lastName,
+                        email: user.email,
+                    },
+                    items: [],
+                    reviews: [],
+                }], { session });
+
+                created = await Outfit.findOne({ id: nextId }).session(session).lean().exec();
             });
 
-            return await this.getOutfitById(String(nextId));
+            if (!created) return [];
+            return [formatUserOutfit(created, "mongodb")];
         } catch (error) {
             console.error("Error creating outfit in MongoDB:", error);
             throw new Error("Failed to create outfit in MongoDB");
+        } finally {
+            await session.endSession();
         }
     }
 
@@ -114,41 +126,61 @@ export class MongoOutfitRepository implements IOutfitRepository {
     }
 
     async addItemToOutfit(id: string, itemId: string): Promise<OutfitDto[]> {
+        const session = await mongoose.startSession();
         try {
             const numericOutfitId = this.parseNumericId(id, "outfit id");
             const numericItemId = this.parseNumericId(itemId, "item id");
+            let updated: any = null;
 
-            const item = await Item.findOne({ id: numericItemId }).lean().exec();
-            if (!item) throw new Error(`Item with id "${itemId}" not found`);
+            await session.withTransaction(async () => {
+                const item = await Item.findOne({ id: numericItemId }).session(session).lean().exec();
+                if (!item) throw new Error(`Item with id "${itemId}" not found`);
 
-            const embeddedItem = this.toEmbeddedItem(item);
+                const embeddedItem = this.toEmbeddedItem(item);
 
-            await Outfit.updateOne(
-                { id: numericOutfitId, "items.id": { $ne: numericItemId } },
-                { $push: { items: embeddedItem } }
-            ).exec();
+                await Outfit.updateOne(
+                    { id: numericOutfitId, "items.id": { $ne: numericItemId } },
+                    { $push: { items: embeddedItem } },
+                    { session }
+                ).exec();
 
-            return await this.getOutfitById(id);
+                updated = await Outfit.findOne({ id: numericOutfitId }).session(session).lean().exec();
+            });
+
+            if (!updated) return [];
+            return [formatUserOutfit(updated, "mongodb")];
         } catch (error) {
             console.error(`Error adding item ${itemId} to outfit ${id} in MongoDB:`, error);
             throw new Error("Failed to add item to outfit in MongoDB");
+        } finally {
+            await session.endSession();
         }
     }
 
     async removeItemFromOutfit(id: string, itemId: string): Promise<OutfitDto[]> {
+        const session = await mongoose.startSession();
         try {
             const numericOutfitId = this.parseNumericId(id, "outfit id");
             const numericItemId = this.parseNumericId(itemId, "item id");
+            let updated: any = null;
 
-            await Outfit.updateOne(
-                { id: numericOutfitId },
-                { $pull: { items: { id: numericItemId } } }
-            ).exec();
+            await session.withTransaction(async () => {
+                await Outfit.updateOne(
+                    { id: numericOutfitId },
+                    { $pull: { items: { id: numericItemId } } },
+                    { session }
+                ).exec();
 
-            return await this.getOutfitById(id);
+                updated = await Outfit.findOne({ id: numericOutfitId }).session(session).lean().exec();
+            });
+
+            if (!updated) return [];
+            return [formatUserOutfit(updated, "mongodb")];
         } catch (error) {
             console.error(`Error removing item ${itemId} from outfit ${id} in MongoDB:`, error);
             throw new Error("Failed to remove item from outfit in MongoDB");
+        } finally {
+            await session.endSession();
         }
     }
 
@@ -198,6 +230,7 @@ export class MongoOutfitRepository implements IOutfitRepository {
                 : [],
         };
     }
+
     async getOutfitOverview(style?: string): Promise<OutfitOverview[]> {
         try {
             const query = style ? { style } : {};
@@ -218,6 +251,7 @@ export class MongoOutfitRepository implements IOutfitRepository {
             throw new Error("Failed to fetch outfit overview from MongoDB");
         }
     }
+
     async getOutfitPrice(id: string): Promise<number> {
         try {
             const numericId = this.parseNumericId(id, "outfit id");
@@ -233,5 +267,4 @@ export class MongoOutfitRepository implements IOutfitRepository {
             throw new Error("Failed to calculate outfit price in MongoDB");
         }
     }
-
 }

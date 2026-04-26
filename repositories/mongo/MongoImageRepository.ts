@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import { Item } from "../../database/mongo/models/index.js";
 
 import type { IImageRepository } from "../interfaces/IImageRepository.js";
@@ -22,31 +23,46 @@ export class MongoImageRepository implements IImageRepository {
     }
 
     async uploadImage(data: { url: string; itemId: string }): Promise<Image[]> {
-        const itemId = this.parseNumericId(data.itemId, "item id");
+        const session = await mongoose.startSession();
+        try {
+            let output: Image[] = [];
 
-        const item = await Item.findOne({ id: itemId }).lean().exec();
-        if (!item) throw new Error(`Item "${data.itemId}" not found`);
+            await session.withTransaction(async () => {
+                const itemId = this.parseNumericId(data.itemId, "item id");
 
-        const max = await Item.aggregate([
-            { $unwind: "$images" },
-            { $sort: { "images.id": -1 } },
-            { $limit: 1 },
-            { $project: { _id: 0, maxId: "$images.id" } },
-        ]).exec();
+                const item = await Item.findOne({ id: itemId }).session(session).lean().exec();
+                if (!item) throw new Error(`Item "${data.itemId}" not found`);
 
-        const nextId = Number(max[0]?.maxId ?? 0) + 1;
+                const max = await Item.aggregate([
+                    { $unwind: "$images" },
+                    { $sort: { "images.id": -1 } },
+                    { $limit: 1 },
+                    { $project: { _id: 0, maxId: "$images.id" } },
+                ]).session(session).exec();
 
-        await Item.updateOne(
-            { id: itemId },
-            { $push: { images: { id: nextId, url: data.url } } }
-        ).exec();
+                const nextId = Number(max[0]?.maxId ?? 0) + 1;
 
-        return [{
-            id: nextId,
-            url: data.url,
-            itemId,
-            fromDatabase: "mongodb",
-        }];
+                await Item.updateOne(
+                    { id: itemId },
+                    { $push: { images: { id: nextId, url: data.url } } },
+                    { session }
+                ).exec();
+
+                output = [{
+                    id: nextId,
+                    url: data.url,
+                    itemId,
+                    fromDatabase: "mongodb",
+                }];
+            });
+
+            return output;
+        } catch (error) {
+            console.error("Error uploading image in MongoDB:", error);
+            throw new Error("Failed to upload image in MongoDB");
+        } finally {
+            await session.endSession();
+        }
     }
 
     async deleteImage(id: string): Promise<void> {

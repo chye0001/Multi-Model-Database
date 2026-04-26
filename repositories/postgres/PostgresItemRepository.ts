@@ -12,7 +12,7 @@ const ITEM_INCLUDE = {
 
 function formatBrand(b: any): Brand {
   return {
-    id: Number(b.id),
+    id: b.id,
     name: b.name,
     country: b.country ? { id: b.country.id, name: b.country.name, countryCode: b.country.countryCode } : { id: 0, name: '', countryCode: '' },
     fromDatabase: 'postgresql',
@@ -52,7 +52,11 @@ export class PostgresItemRepository implements IItemRepository {
   async createItem(data: { name: string; price?: number; categoryId: number }): Promise<ClothingItem[]> {
     try {
       const item = await prisma.item.create({
-        data: { name: data.name, price: data.price, categoryId: data.categoryId },
+        data: {
+          name: data.name,
+          price: data.price ?? null,
+          categoryId: data.categoryId
+        },
         include: ITEM_INCLUDE,
       });
       return [{ ...formatClothingItem(item, 'postgresql'), fromDatabase: 'postgresql' }];
@@ -101,8 +105,12 @@ export class PostgresItemRepository implements IItemRepository {
 
   async addImageToItem(id: number, data: { url: string }): Promise<ItemImage[]> {
     try {
-      await prisma.image.create({ data: { url: data.url, itemId: BigInt(id) } });
-      return await this.getItemImages(id);
+      return await prisma.$transaction(async (tx) => {
+        await tx.image.create({ data: { url: data.url, itemId: BigInt(id) } });
+
+        const images = await tx.image.findMany({ where: { itemId: BigInt(id) } });
+        return images.map(img => ({ id: Number(img.id), url: img.url }));
+      });
     } catch (error) {
       console.error(`Error adding image to item ${id} in PostgreSQL:`, error);
       throw new Error('Failed to add image to item in PostgreSQL');
@@ -133,12 +141,20 @@ export class PostgresItemRepository implements IItemRepository {
 
   async addBrandToItem(id: number, brandId: number): Promise<Brand[]> {
     try {
-      await prisma.itemBrand.upsert({
-        where: { itemId_brandId: { itemId: BigInt(id), brandId } },
-        create: { itemId: BigInt(id), brandId },
-        update: {},
+      return await prisma.$transaction(async (tx) => {
+        await tx.itemBrand.upsert({
+          where: { itemId_brandId: { itemId: BigInt(id), brandId } },
+          create: { itemId: BigInt(id), brandId },
+          update: {},
+        });
+
+        const relations = await tx.itemBrand.findMany({
+          where: { itemId: BigInt(id) },
+          include: { brand: { include: { country: true } } },
+        });
+
+        return relations.map(r => formatBrand(r.brand));
       });
-      return await this.getItemBrands(id);
     } catch (error) {
       console.error(`Error adding brand ${brandId} to item ${id} in PostgreSQL:`, error);
       throw new Error('Failed to add brand to item in PostgreSQL');
