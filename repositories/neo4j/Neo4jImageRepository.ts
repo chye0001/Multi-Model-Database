@@ -20,32 +20,42 @@ export class Neo4jImageRepository implements IImageRepository {
 
     async uploadImage(data: { url: string; itemId: string }): Promise<Image[]> {
         const itemId = this.parseNumericId(data.itemId, "item id");
+        const session = neogma.driver.session();
+        try {
+            const maxResult = await neogma.queryRunner.run(
+                `MATCH (img:Image)
+                 RETURN coalesce(max(img.id), 0) AS maxId`
+            );
 
-        const maxResult = await neogma.queryRunner.run(
-            `MATCH (img:Image)
-             RETURN coalesce(max(img.id), 0) AS maxId`
-        );
+            const rawMax = maxResult.records[0]?.get("maxId");
+            const nextId = this.toNumber(rawMax) + 1;
 
-        const rawMax = maxResult.records[0]?.get("maxId");
-        const nextId = this.toNumber(rawMax) + 1;
+            const created = await session.executeWrite(async (tx) => {
+                const result = await tx.run(
+                    `MATCH (i:Item { id: $itemId })
+                     CREATE (img:Image { id: $id, url: $url })
+                     CREATE (i)-[:HAS]->(img)
+                     RETURN img, i.id AS itemId`,
+                    {
+                        id: nextId,
+                        url: data.url,
+                        itemId,
+                    }
+                );
+                return result;
+            });
 
-        const created = await neogma.queryRunner.run(
-            `MATCH (i:Item { id: $itemId })
-             CREATE (img:Image { id: $id, url: $url })
-             CREATE (i)-[:HAS]->(img)
-             RETURN img, i.id AS itemId`,
-            {
-                id: nextId,
-                url: data.url,
-                itemId,
+            if (created.records.length === 0) {
+                throw new Error(`Item "${data.itemId}" not found`);
             }
-        );
 
-        if (created.records.length === 0) {
-            throw new Error(`Item "${data.itemId}" not found`);
+            return created.records.map((record) => this.toImageDto(record));
+        } catch (error) {
+            console.error("Error uploading image in Neo4j:", error);
+            throw new Error("Failed to upload image in Neo4j");
+        } finally {
+            await session.close();
         }
-
-        return created.records.map((record) => this.toImageDto(record));
     }
 
     async deleteImage(id: string): Promise<void> {

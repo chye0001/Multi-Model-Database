@@ -40,39 +40,49 @@ export class Neo4jReviewRepository implements IReviewRepository {
 
     async createReview(data: { score: number; text: string; outfitId: string; writtenBy: string }): Promise<Review[]> {
         const outfitId = this.parseNumericId(data.outfitId, "outfit id");
+        const session = neogma.driver.session();
+        try {
+            const maxResult = await neogma.queryRunner.run(
+                `MATCH (rv:Review) RETURN coalesce(max(rv.id), 0) AS maxId`
+            );
+            const rawMax = maxResult.records[0]?.get("maxId");
+            const nextId = this.toNumber(rawMax) + 1;
+            const dateWritten = new Date().toISOString();
 
-        const maxResult = await neogma.queryRunner.run(
-            `MATCH (rv:Review) RETURN coalesce(max(rv.id), 0) AS maxId`
-        );
-        const rawMax = maxResult.records[0]?.get("maxId");
-        const nextId = this.toNumber(rawMax) + 1;
-        const dateWritten = new Date().toISOString();
+            const created = await session.executeWrite(async (tx) => {
+                const result = await tx.run(
+                    `MATCH (u:User { id: $userId })
+                     MATCH (o:Outfit { id: $outfitId })
+                     CREATE (rv:Review { id: $id, score: $score, text: $text })
+                     CREATE (u)-[:WRITES { dateWritten: $dateWritten }]->(rv)
+                     CREATE (rv)-[:ABOUT]->(o)
+                     RETURN rv,
+                            o.id AS outfitId,
+                            { id: u.id, firstName: u.firstName, lastName: u.lastName, email: u.email } AS writtenBy,
+                            $dateWritten AS dateWritten`,
+                    {
+                        id: nextId,
+                        score: data.score,
+                        text: data.text,
+                        userId: data.writtenBy,
+                        outfitId,
+                        dateWritten,
+                    }
+                );
+                return result;
+            });
 
-        const created = await neogma.queryRunner.run(
-            `MATCH (u:User { id: $userId })
-             MATCH (o:Outfit { id: $outfitId })
-             CREATE (rv:Review { id: $id, score: $score, text: $text })
-             CREATE (u)-[:WRITES { dateWritten: $dateWritten }]->(rv)
-             CREATE (rv)-[:ABOUT]->(o)
-             RETURN rv,
-                    o.id AS outfitId,
-                    { id: u.id, firstName: u.firstName, lastName: u.lastName, email: u.email } AS writtenBy,
-                    $dateWritten AS dateWritten`,
-            {
-                id: nextId,
-                score: data.score,
-                text: data.text,
-                userId: data.writtenBy,
-                outfitId,
-                dateWritten,
+            if (created.records.length === 0) {
+                throw new Error("User or outfit not found for review creation");
             }
-        );
 
-        if (created.records.length === 0) {
-            throw new Error("User or outfit not found for review creation");
+            return created.records.map((record) => formatUserReview(record, "neo4j"));
+        } catch (error) {
+            console.error("Error creating review in Neo4j:", error);
+            throw new Error("Failed to create review in Neo4j");
+        } finally {
+            await session.close();
         }
-
-        return created.records.map((record) => formatUserReview(record, "neo4j"));
     }
 
     async updateReview(id: string, data: Partial<{ score: number; text: string }>): Promise<Review[]> {
