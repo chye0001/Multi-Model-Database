@@ -60,34 +60,37 @@ services:
   mongo:
     image: mongo:7
     container_name: mongo-standalone
+    command: [ "mongod", "--replSet", "rs0", "--bind_ip_all", "--keyFile", "/etc/mongo-keyfile" ]
     ports:
       - "27018:27017"
     environment:
       MONGO_INITDB_DATABASE: ${MONGO_DB_DEV}
-      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USER}     # root user credentials
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USER}
       MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD}
-      MONGO_BACKUP_USER: ${MONGO_BACKUP_USER}            # backup user credentials
+      MONGO_BACKUP_USER: ${MONGO_BACKUP_USER}
       MONGO_BACKUP_PASSWORD: ${MONGO_BACKUP_PASSWORD}
-      MONGO_APP_USER: ${MONGO_APP_USER}                  # app user credentials
-      MONGO_APP_PASSWORD: ${MONGO_APP_PASSWORD} 
+      MONGO_APP_USER: ${MONGO_APP_USER}
+      MONGO_APP_PASSWORD: ${MONGO_APP_PASSWORD}
     volumes:
       - mongo_data:/data/db
       - ./database/mongo/init:/docker-entrypoint-initdb.d:ro
       - ./database/mongo/backups/base:/mongo_backup:ro
       - ./database/mongo/backups/restore.sh:/usr/local/bin/restore.sh:ro
-
+      - ./database/mongo/mongo-keyfile:/etc/mongo-keyfile:ro
     networks:
       - database_network
     healthcheck:
-      test: ["CMD", "mongosh", "--quiet",
-             "-u", "${MONGO_ROOT_USER}",
-             "-p", "${MONGO_ROOT_PASSWORD}",
-             "--authenticationDatabase", "admin",
-             "--eval", "db.adminCommand('ping').ok"]
+      test: [ "CMD", "mongosh", "--quiet",
+              "-u", "${MONGO_ROOT_USER}",
+              "-p", "${MONGO_ROOT_PASSWORD}",
+              "--authenticationDatabase", "admin",
+              "--eval", "db.adminCommand('ping').ok" ]
       interval: 10s
       timeout: 5s
       retries: 10
       start_period: 20s
+
+
 
   mongo-backup:
     image: mongo:7
