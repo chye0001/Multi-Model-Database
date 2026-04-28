@@ -13,6 +13,7 @@
     "prisma:push": "prisma db push",
     "prisma:seed": "prisma db seed",
     "prisma:reset": "prisma migrate reset",
+    "postgres:backup": "docker exec postgres_backup bash /usr/local/bin/backup.sh",
     "postgres:restore": "tsx ./database/postgres/backups/restore.ts",
     "postgres:restore:cleanup": "tsx ./database/postgres/backups/restore.ts cleanup",
     "mongo:seed": "tsx database/mongo/scripts/seed.ts",
