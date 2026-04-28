@@ -104,7 +104,18 @@ services:
     entrypoint: ["/bin/bash", "-c"]
     command:
       - |
-        echo "Initializing replica set..."
+        echo "Waiting for MongoDB to be ready..."
+        until mongosh \
+          --host mongo-replicaset:27017 \
+          -u $$MONGO_ROOT_USER \
+          -p $$MONGO_ROOT_PASSWORD \
+          --authenticationDatabase admin \
+          --eval "db.adminCommand('ping')" > /dev/null 2>&1; do
+          echo "  ...not ready yet, retrying in 12s"
+          sleep 12
+        done
+
+        echo "MongoDB is ready. Initializing replica set..."
         mongosh \
           --host mongo-replicaset:27017 \
           -u $$MONGO_ROOT_USER \
