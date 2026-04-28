@@ -10,6 +10,7 @@ const POSTGRESQL_CONF = "./database/postgres/postgresql.conf";
 const DATA_VOLUME = "postgres_data";
 const CONTAINER_DATA_PATH = "/var/lib/postgresql/data";
 const CONTAINER_BACKUP_PATH = "/backup";
+const POSTGRES_CONTAINER = "postgres_database";
 
 const RECOVERY_SETTINGS = `
 # ── Recovery (auto-added by restore.ts — remove after recovery is complete) ──
@@ -27,7 +28,6 @@ const rl = createInterface({ input: process.stdin, output: process.stdout });
 const ask = (question: string): Promise<string> =>
   new Promise((resolve) => rl.question(question, resolve));
 
-// Converts Windows backslashes to forward slashes for Docker volume mounts
 const toDockerPath = (p: string): string => p.replace(/\\/g, "/");
 
 const run = (label: string, args: string[]): void => {
@@ -50,6 +50,88 @@ const run = (label: string, args: string[]): void => {
   console.log(`✅ ${label} complete`);
 };
 
+// ── Container helpers ─────────────────────────────────────────────────────────
+
+const isContainerRunning = (): boolean => {
+  const inspect = spawnSync(
+    "docker",
+    ["inspect", "-f", "{{.State.Running}}", POSTGRES_CONTAINER],
+    { encoding: "utf8" }
+  );
+  return inspect.status === 0 && inspect.stdout.trim() === "true";
+};
+
+const stopPostgres = (): void => {
+  if (!isContainerRunning()) {
+    console.log("ℹ️  Container is already stopped, skipping...");
+    return;
+  }
+  run("Stopping postgres container", ["stop", POSTGRES_CONTAINER]);
+};
+
+const startPostgres = (): void => {
+  run("Starting postgres container", ["start", POSTGRES_CONTAINER]);
+
+  // Wait for postgres to be ready
+  console.log("\n⏳ Waiting for postgres to be ready...");
+  let attempts = 0;
+  const maxAttempts = 20;
+
+  while (attempts < maxAttempts) {
+    const result = spawnSync(
+      "docker",
+      ["exec", POSTGRES_CONTAINER, "pg_isready", "-U", "postgres"],
+      { encoding: "utf8" }
+    );
+
+    if (result.status === 0) {
+      console.log("✅ Postgres is ready");
+      return;
+    }
+
+    attempts++;
+    console.log(`  ...not ready yet (${attempts}/${maxAttempts}), retrying in 2s`);
+    spawnSync("sleep", ["2"]);
+  }
+
+  console.error("❌ Postgres did not become ready in time");
+  rl.close();
+  process.exit(1);
+};
+
+const waitForRecoveryComplete = (): void => {
+  console.log("\n⏳ Waiting for recovery to complete...");
+  let attempts = 0;
+  const maxAttempts = 30;
+
+  while (attempts < maxAttempts) {
+    const result = spawnSync(
+      "docker",
+      [
+        "exec", POSTGRES_CONTAINER,
+        "psql", "-U", "postgres",
+        "-t", "-c", "SELECT pg_is_in_recovery();"
+      ],
+      { encoding: "utf8" }
+    );
+
+    const output = result.stdout?.trim();
+
+    if (output === "f") {
+      console.log("✅ Recovery complete — postgres is no longer in recovery mode");
+      return;
+    }
+
+    attempts++;
+    console.log(`  ...still recovering (${attempts}/${maxAttempts}), retrying in 3s`);
+    spawnSync("sleep", ["3"]);
+  }
+
+  console.error("❌ Recovery did not complete in time — check postgres logs");
+  rl.close();
+  process.exit(1);
+};
+
 // ── postgresql.conf helpers ───────────────────────────────────────────────────
 
 const addRecoverySettings = (): void => {
@@ -64,7 +146,7 @@ const addRecoverySettings = (): void => {
   const contents = readFileSync(POSTGRESQL_CONF, "utf8");
 
   if (contents.includes(RECOVERY_MARKER_START)) {
-    console.log("ℹ️  Recovery settings already present in postgresql.conf, skipping...");
+    console.log("ℹ️  Recovery settings already present, skipping...");
     return;
   }
 
@@ -75,11 +157,16 @@ const addRecoverySettings = (): void => {
 const removeRecoverySettings = (): void => {
   console.log("\n⏳ Removing recovery settings from postgresql.conf...");
 
+  if (!existsSync(POSTGRESQL_CONF)) {
+    console.error(`❌ postgresql.conf not found at: ${POSTGRESQL_CONF}`);
+    return;
+  }
+
   const contents = readFileSync(POSTGRESQL_CONF, "utf8");
   const markerIndex = contents.indexOf(RECOVERY_MARKER_START);
 
   if (markerIndex === -1) {
-    console.log("ℹ️  No recovery settings found in postgresql.conf, skipping...");
+    console.log("ℹ️  No recovery settings found, skipping...");
     return;
   }
 
@@ -100,7 +187,7 @@ const getAvailableBackups = (): string[] => {
     .filter((entry) => entry.isDirectory())
     .map((entry) => entry.name)
     .sort()
-    .reverse(); // most recent first
+    .reverse();
 
   if (backups.length === 0) {
     console.error("❌ No backups found in", BACKUPS_DIR);
@@ -136,8 +223,6 @@ const main = async (): Promise<void> => {
   }
 
   const selectedBackup = backups[choice - 1]!;
-
-  // Resolve absolute path and normalize slashes for Docker
   const hostBackupPath = toDockerPath(resolve(join(BACKUPS_DIR, selectedBackup)));
 
   console.log(`\n📂 Selected: ${selectedBackup}`);
@@ -172,28 +257,9 @@ const main = async (): Promise<void> => {
     process.exit(0);
   }
 
-  // 4. Check postgres container is stopped
-  console.log("\n🔍 Checking postgres container status...");
-
-  const inspect = spawnSync(
-    "docker",
-    ["inspect", "-f", "{{.State.Running}}", "postgres_database"],
-    { encoding: "utf8" }
-  );
-
-  if (inspect.error || inspect.status !== 0) {
-    console.log("ℹ️  Container not found or already stopped, proceeding...");
-  } else {
-    const isRunning = inspect.stdout.trim() === "true";
-    if (isRunning) {
-      console.error(
-        "❌ postgres_database container is still running.\n   Stop it first with: docker compose stop postgres"
-      );
-      rl.close();
-      process.exit(1);
-    }
-    console.log("✅ Container is stopped, proceeding...");
-  }
+  // 4. Automatically stop postgres
+  console.log("\n🔍 Stopping postgres container...");
+  stopPostgres();
 
   // 5. Restore base backup into volume
   run("Restoring base backup", [
@@ -214,7 +280,7 @@ const main = async (): Promise<void> => {
     `chown -R 999:999 ${CONTAINER_DATA_PATH} && chmod 700 ${CONTAINER_DATA_PATH}`,
   ]);
 
-  // 7. Create recovery.signal in the data volume
+  // 7. Create recovery.signal
   run("Creating recovery.signal", [
     "run", "--rm",
     "-v", `${DATA_VOLUME}:${CONTAINER_DATA_PATH}`,
@@ -223,10 +289,10 @@ const main = async (): Promise<void> => {
     `touch ${CONTAINER_DATA_PATH}/recovery.signal`,
   ]);
 
-  // 8. Add recovery settings to postgresql.conf on host
+  // 8. Add recovery settings to postgresql.conf
   addRecoverySettings();
 
-  // 9. If PITR time was provided, append recovery_target_time to postgresql.conf
+  // 9. Add PITR time if provided
   if (pitrTime) {
     console.log("\n⏳ Adding recovery_target_time to postgresql.conf...");
     const contents = readFileSync(POSTGRESQL_CONF, "utf8");
@@ -238,34 +304,30 @@ const main = async (): Promise<void> => {
     console.log("✅ recovery_target_time added");
   }
 
-  // 10. Done
+  // 10. Start postgres and wait for recovery
+  startPostgres();
+  waitForRecoveryComplete();
+
+  // 11. Automatic cleanup
+  console.log("\n⏳ Running automatic cleanup...");
+  removeRecoverySettings();
+
+  // 12. Restart postgres to apply cleaned config
+  run("Restarting postgres to apply cleaned config", ["restart", POSTGRES_CONTAINER]);
+
   console.log(`
 ╔══════════════════════════════════════════════════════════════╗
 ║                     Restore Complete ✅                      ║
 ╚══════════════════════════════════════════════════════════════╝
 
-📋 Remaining steps:
-
-  1. Start postgres:
-
-       docker compose start postgres
-
-  2. Verify recovery is complete (should return 'f'):
-
-       docker exec postgres_database psql -U postgres -c "SELECT pg_is_in_recovery();"
-
-  3. Remove recovery settings from postgresql.conf by running:
-
-       npm run postgres:restore:cleanup
-
+  Postgres has been fully restored and is ready to use.
+  Recovery settings have been automatically removed.
 `);
 
   rl.close();
 };
 
-// ── Cleanup mode ─────────────────────────────────────────────────────────────
-// Run with: npm run db:restore:cleanup
-// Removes recovery settings from postgresql.conf after recovery is confirmed complete
+// ── Cleanup mode (manual fallback) ───────────────────────────────────────────
 
 const cleanup = (): void => {
   console.log("╔══════════════════════════════════════╗");
