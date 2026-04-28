@@ -2,8 +2,16 @@
 .env
 **generated
 
-# normally should be ignored but this is a school project so yea..
-# /database/postgres/backups/base/*
-# /database/postgres/backups/wal_archives/*
-# /database/mongo/backups/base/*
-# /database/neo4j/backups/base/*
+# Backup folders — existing backups remain on remote, future ones ignored
+database/postgres/backups/base/*
+database/postgres/backups/wal_archives/*
+database/mongo/backups/base/*
+database/neo4j/backups/base/*
+
+# Keep .gitkeep placeholders so folder structure is preserved
+!database/postgres/backups/base/.gitkeep
+!database/postgres/backups/wal_archives/.gitkeep
+!database/mongo/backups/base/.gitkeep
+!database/neo4j/backups/base/.gitkeep
+
+database/mongo/mongo-keyfile
