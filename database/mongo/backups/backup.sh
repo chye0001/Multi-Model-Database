@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-MONGO_HOST="mongo-standalone"
+MONGO_HOST="mongo-replicaset"
 MONGO_PORT="27017"
 BACKUP_ROOT="/mongo_backup"
 TIMESTAMP=$(date +"%Y-%m-%dT%H-%M-%S")

@@ -103,6 +103,12 @@ POSTGRES_BACKUP_PASSWORD=strongpassword
 
 Then restart the containers, and the the periodical backups should run every 24 hours, altough only locally.. for now...
 
+## Backups on demand
+To create any backups on demand, without waiting the 24 hours simply call this command:
+```bash
+npm run postgres:backup
+```
+
 
 ## Restore
 

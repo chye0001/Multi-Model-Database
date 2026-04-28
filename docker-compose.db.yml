@@ -58,9 +58,12 @@ services:
     restart: unless-stopped
 
   mongo:
-    image: mongo:7
-    container_name: mongo-standalone
-    command: [ "mongod", "--replSet", "rs0", "--bind_ip_all", "--keyFile", "/etc/mongo-keyfile" ]
+    build:
+      context: ./database/mongo
+      dockerfile: Dockerfile
+    image: mongo-with-replicaset   # cached after first build
+    container_name: mongo-replicaset
+    command: ["mongod", "--replSet", "rs0", "--bind_ip_all", "--keyFile", "/etc/mongo-keyfile"]
     ports:
       - "27018:27017"
     environment:
@@ -73,22 +76,54 @@ services:
       MONGO_APP_PASSWORD: ${MONGO_APP_PASSWORD}
     volumes:
       - mongo_data:/data/db
-      - ./database/mongo/init:/docker-entrypoint-initdb.d:ro
-      - ./database/mongo/backups/base:/mongo_backup:ro
-      - ./database/mongo/backups/restore.sh:/usr/local/bin/restore.sh:ro
-      - ./database/mongo/mongo-keyfile:/etc/mongo-keyfile:ro
+      - ./database/mongo/init:/docker-entrypoint-initdb.d:ro  # your existing init scripts
     networks:
       - database_network
     healthcheck:
-      test: [ "CMD", "mongosh", "--quiet",
-              "-u", "${MONGO_ROOT_USER}",
-              "-p", "${MONGO_ROOT_PASSWORD}",
-              "--authenticationDatabase", "admin",
-              "--eval", "db.adminCommand('ping').ok" ]
+      test: ["CMD", "mongosh", "--quiet",
+            "-u", "${MONGO_ROOT_USER}",
+            "-p", "${MONGO_ROOT_PASSWORD}",
+            "--authenticationDatabase", "admin",
+            "--eval", "db.adminCommand('ping').ok"]
       interval: 10s
       timeout: 5s
       retries: 10
       start_period: 20s
+
+  mongo-rs-init:
+    image: mongo:7
+    container_name: mongo_rs_init
+    depends_on:
+      mongo:
+        condition: service_healthy
+    environment:
+      MONGO_ROOT_USER: ${MONGO_ROOT_USER}
+      MONGO_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD}
+    networks:
+      - database_network
+    entrypoint: ["/bin/bash", "-c"]
+    command:
+      - |
+        echo "Initializing replica set..."
+        mongosh \
+          --host mongo-replicaset:27017 \
+          -u $$MONGO_ROOT_USER \
+          -p $$MONGO_ROOT_PASSWORD \
+          --authenticationDatabase admin \
+          --eval "
+            try {
+              var status = rs.status();
+              print('Replica set already initialized, skipping.');
+            } catch(e) {
+              print('Initiating replica set...');
+              rs.initiate({
+                _id: 'rs0',
+                members: [{ _id: 0, host: 'mongo-replicaset:27017' }]
+              });
+              print('Replica set initialized successfully.');
+            }
+          "
+    restart: "no"
 
 
 
@@ -109,10 +144,7 @@ services:
     entrypoint: ["/bin/bash", "-c"]
     command:
       - |
-        echo "Installing Docker CLI..."
-        apt-get update -qq && apt-get install -y -qq docker.io
-        echo "Install complete."
-        echo "First Neo4j backup in 24 hours..."
+        echo "First MongoDB backup in 24 hours..."
         sleep 86400
         while true; do
           bash /usr/local/bin/backup.sh
@@ -195,8 +227,9 @@ services:
       - |
         echo "Installing Docker CLI..."
         apt-get update -qq && apt-get install -y -qq docker.io
-        echo "Install complete. Waiting before first backup..."
-        sleep 15
+        echo "Install complete."
+        echo "First Neo4j backup in 24 hours..."
+        sleep 86400
         while true; do
           bash /usr/local/bin/backup.sh
           echo "Next backup in 24 hours..."

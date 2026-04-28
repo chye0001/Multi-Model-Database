@@ -1,7 +1,9 @@
 /node_modules
 .env
 **generated
-/database/postgres/backups/base/*
-/database/postgres/backups/wal_archives/*
-/database/mongo/backups/base/*
-/database/neo4j/backups/base/*
+
+# normally should be ignored but this is a school project so yea..
+# /database/postgres/backups/base/*
+# /database/postgres/backups/wal_archives/*
+# /database/mongo/backups/base/*
+# /database/neo4j/backups/base/*

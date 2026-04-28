@@ -15,7 +15,7 @@ const CONFIG = {
   itemsPerOutfit:       3,  // how many closet items to add to each outfit
   brandsPerItem:        2,  // max number of brands assigned to each item (min is always 1)
   sharedClosetsPerUser: 3,  // how many closets each user gets shared with them (from other users)
-  outfitsPerUser:       10,  // how many outfits a single user has
+  outfitsPerUser:       2,  // how many outfits a single user has
 };
 // ─────────────────────────────────────────────────────────────────────────────
 
