@@ -7,22 +7,24 @@ import { prisma } from "../prisma-client.js";
 // Adjust these numbers to control how much data gets seeded
 const CONFIG = {
   users:               100,  // number of users to create
-  items:               100,  // number of items to create
-  closets:             2500,  // number of closets to create (spread across users)
+  items:               10000,  // number of items to create
+  closets:             100,  // number of closets to create (spread across users)
   // outfits:             10,  // number of outfits to create
-  reviews:             10,  // number of reviews (one per outfit)
-  itemsPerCloset:       5,  // how many items to add to each closet
-  itemsPerOutfit:       3,  // how many closet items to add to each outfit
+  reviews:             100,  // number of reviews (one per outfit)
+  itemsPerCloset:       100,  // how many items to add to each closet
+  itemsPerOutfit:       10,  // how many closet items to add to each outfit
   brandsPerItem:        2,  // max number of brands assigned to each item (min is always 1)
-  sharedClosetsPerUser: 3,  // how many closets each user gets shared with them (from other users)
-  outfitsPerUser:       2,  // how many outfits a single user has
+  sharedClosetsPerUser: 10,  // how many closets each user gets shared with them (from other users)
+  outfitsPerUser:       10,  // how many outfits a single user has
 };
 // ─────────────────────────────────────────────────────────────────────────────
 
 // Utility: pick a random element from an array
+//@ts-ignore
 const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
 
 // Utility: pick N unique random elements from an array
+//@ts-ignore
 const pickN = (arr, n) => {
   const shuffled = [...arr].sort(() => Math.random() - 0.5);
   return shuffled.slice(0, Math.min(n, arr.length));
@@ -38,37 +40,153 @@ async function seed() {
   // ── 1. STATIC REFERENCE DATA ─────────────────────────────────────────────
   // These are always created as-is — they are lookup tables, not stress data
 
-  const [usa, denmark, germany, france, sweden] = await Promise.all([
-    prisma.country.create({ data: { name: "United States", countryCode: "US" } }),
-    prisma.country.create({ data: { name: "Denmark",       countryCode: "DK" } }),
-    prisma.country.create({ data: { name: "Germany",       countryCode: "DE" } }),
-    prisma.country.create({ data: { name: "France",        countryCode: "FR" } }),
-    prisma.country.create({ data: { name: "Sweden",        countryCode: "SE" } }),
+  const countries = await Promise.all([
+    // Europe
+    prisma.country.create({ data: { name: "Denmark",        countryCode: "DK" } }),
+    prisma.country.create({ data: { name: "Sweden",         countryCode: "SE" } }),
+    prisma.country.create({ data: { name: "Norway",         countryCode: "NO" } }),
+    prisma.country.create({ data: { name: "Finland",        countryCode: "FI" } }),
+    prisma.country.create({ data: { name: "Germany",        countryCode: "DE" } }),
+    prisma.country.create({ data: { name: "France",         countryCode: "FR" } }),
+    prisma.country.create({ data: { name: "Italy",          countryCode: "IT" } }),
+    prisma.country.create({ data: { name: "Spain",          countryCode: "ES" } }),
+    prisma.country.create({ data: { name: "Portugal",       countryCode: "PT" } }),
+    prisma.country.create({ data: { name: "Netherlands",    countryCode: "NL" } }),
+    prisma.country.create({ data: { name: "Belgium",        countryCode: "BE" } }),
+    prisma.country.create({ data: { name: "Switzerland",    countryCode: "CH" } }),
+    prisma.country.create({ data: { name: "Austria",        countryCode: "AT" } }),
+    prisma.country.create({ data: { name: "United Kingdom", countryCode: "GB" } }),
+    prisma.country.create({ data: { name: "Poland",         countryCode: "PL" } }),
+    // Americas
+    prisma.country.create({ data: { name: "United States",  countryCode: "US" } }),
+    prisma.country.create({ data: { name: "Canada",         countryCode: "CA" } }),
+    prisma.country.create({ data: { name: "Brazil",         countryCode: "BR" } }),
+    prisma.country.create({ data: { name: "Mexico",         countryCode: "MX" } }),
+    prisma.country.create({ data: { name: "Argentina",      countryCode: "AR" } }),
+    // Asia
+    prisma.country.create({ data: { name: "Japan",          countryCode: "JP" } }),
+    prisma.country.create({ data: { name: "South Korea",    countryCode: "KR" } }),
+    prisma.country.create({ data: { name: "China",          countryCode: "CN" } }),
+    prisma.country.create({ data: { name: "India",          countryCode: "IN" } }),
+    prisma.country.create({ data: { name: "Vietnam",        countryCode: "VN" } }),
+    prisma.country.create({ data: { name: "Thailand",       countryCode: "TH" } }),
+    prisma.country.create({ data: { name: "Turkey",         countryCode: "TR" } }),
+    // Oceania & Africa
+    prisma.country.create({ data: { name: "Australia",      countryCode: "AU" } }),
+    prisma.country.create({ data: { name: "New Zealand",    countryCode: "NZ" } }),
+    prisma.country.create({ data: { name: "South Africa",   countryCode: "ZA" } }),
   ]);
-  const countries = [usa, denmark, germany, france, sweden];
 
   const [adminRole, userRole] = await Promise.all([
     prisma.role.create({ data: { role: "admin" } }),
     prisma.role.create({ data: { role: "user"  } }),
   ]);
 
-  const [nike, adidas, ganni, apc, acneStudios] = await Promise.all([
-    prisma.brand.create({ data: { name: "Nike",        countryId: usa.id     } }),
-    prisma.brand.create({ data: { name: "Adidas",      countryId: germany.id } }),
-    prisma.brand.create({ data: { name: "Ganni",       countryId: denmark.id } }),
-    prisma.brand.create({ data: { name: "A.P.C.",      countryId: france.id  } }),
-    prisma.brand.create({ data: { name: "Acne Studios",countryId: sweden.id  } }),
+  // Build a lookup map for easy country retrieval by code
+  const countryMap = new Map(countries.map((c) => [c.countryCode, c]));
+  
+  const brands = await Promise.all([
+    // American brands
+    prisma.brand.create({ data: { name: "Nike",              countryId: countryMap.get("US")!.id } }),
+    prisma.brand.create({ data: { name: "Ralph Lauren",      countryId: countryMap.get("US")!.id } }),
+    prisma.brand.create({ data: { name: "Calvin Klein",      countryId: countryMap.get("US")!.id } }),
+    prisma.brand.create({ data: { name: "Tommy Hilfiger",    countryId: countryMap.get("US")!.id } }),
+    prisma.brand.create({ data: { name: "Coach",             countryId: countryMap.get("US")!.id } }),
+    prisma.brand.create({ data: { name: "Marc Jacobs",       countryId: countryMap.get("US")!.id } }),
+    prisma.brand.create({ data: { name: "Michael Kors",      countryId: countryMap.get("US")!.id } }),
+    // German brands
+    prisma.brand.create({ data: { name: "Adidas",            countryId: countryMap.get("DE")!.id } }),
+    prisma.brand.create({ data: { name: "Puma",              countryId: countryMap.get("DE")!.id } }),
+    prisma.brand.create({ data: { name: "Hugo Boss",         countryId: countryMap.get("DE")!.id } }),
+    prisma.brand.create({ data: { name: "Birkenstock",       countryId: countryMap.get("DE")!.id } }),
+    // French brands
+    prisma.brand.create({ data: { name: "Louis Vuitton",     countryId: countryMap.get("FR")!.id } }),
+    prisma.brand.create({ data: { name: "Chanel",            countryId: countryMap.get("FR")!.id } }),
+    prisma.brand.create({ data: { name: "Dior",              countryId: countryMap.get("FR")!.id } }),
+    prisma.brand.create({ data: { name: "Hermès",            countryId: countryMap.get("FR")!.id } }),
+    prisma.brand.create({ data: { name: "A.P.C.",            countryId: countryMap.get("FR")!.id } }),
+    prisma.brand.create({ data: { name: "Jacquemus",         countryId: countryMap.get("FR")!.id } }),
+    prisma.brand.create({ data: { name: "Isabel Marant",     countryId: countryMap.get("FR")!.id } }),
+    // Italian brands
+    prisma.brand.create({ data: { name: "Gucci",             countryId: countryMap.get("IT")!.id } }),
+    prisma.brand.create({ data: { name: "Prada",             countryId: countryMap.get("IT")!.id } }),
+    prisma.brand.create({ data: { name: "Versace",           countryId: countryMap.get("IT")!.id } }),
+    prisma.brand.create({ data: { name: "Fendi",             countryId: countryMap.get("IT")!.id } }),
+    prisma.brand.create({ data: { name: "Armani",            countryId: countryMap.get("IT")!.id } }),
+    prisma.brand.create({ data: { name: "Bottega Veneta",    countryId: countryMap.get("IT")!.id } }),
+    prisma.brand.create({ data: { name: "Valentino",         countryId: countryMap.get("IT")!.id } }),
+    prisma.brand.create({ data: { name: "Stone Island",      countryId: countryMap.get("IT")!.id } }),
+    // Scandinavian brands
+    prisma.brand.create({ data: { name: "Ganni",             countryId: countryMap.get("DK")!.id } }),
+    prisma.brand.create({ data: { name: "Samsøe Samsøe",    countryId: countryMap.get("DK")!.id } }),
+    prisma.brand.create({ data: { name: "Acne Studios",      countryId: countryMap.get("SE")!.id } }),
+    prisma.brand.create({ data: { name: "Weekday",           countryId: countryMap.get("SE")!.id } }),
+    prisma.brand.create({ data: { name: "Our Legacy",        countryId: countryMap.get("SE")!.id } }),
+    prisma.brand.create({ data: { name: "Filippa K",         countryId: countryMap.get("SE")!.id } }),
+    prisma.brand.create({ data: { name: "Norse Projects",    countryId: countryMap.get("DK")!.id } }),
+    // British brands
+    prisma.brand.create({ data: { name: "Burberry",          countryId: countryMap.get("GB")!.id } }),
+    prisma.brand.create({ data: { name: "Paul Smith",        countryId: countryMap.get("GB")!.id } }),
+    prisma.brand.create({ data: { name: "Barbour",           countryId: countryMap.get("GB")!.id } }),
+    prisma.brand.create({ data: { name: "Dr. Martens",       countryId: countryMap.get("GB")!.id } }),
+    prisma.brand.create({ data: { name: "Alexander McQueen", countryId: countryMap.get("GB")!.id } }),
+    // Japanese brands
+    prisma.brand.create({ data: { name: "Comme des Garçons", countryId: countryMap.get("JP")!.id } }),
+    prisma.brand.create({ data: { name: "Issey Miyake",      countryId: countryMap.get("JP")!.id } }),
+    prisma.brand.create({ data: { name: "Uniqlo",            countryId: countryMap.get("JP")!.id } }),
+    prisma.brand.create({ data: { name: "Yohji Yamamoto",    countryId: countryMap.get("JP")!.id } }),
+    // Spanish brands
+    prisma.brand.create({ data: { name: "Zara",              countryId: countryMap.get("ES")!.id } }),
+    prisma.brand.create({ data: { name: "Mango",             countryId: countryMap.get("ES")!.id } }),
+    prisma.brand.create({ data: { name: "Balenciaga",        countryId: countryMap.get("ES")!.id } }),
+    // Belgian brands
+    prisma.brand.create({ data: { name: "Maison Margiela",   countryId: countryMap.get("BE")!.id } }),
+    prisma.brand.create({ data: { name: "Dries Van Noten",   countryId: countryMap.get("BE")!.id } }),
+    // Swiss brands
+    prisma.brand.create({ data: { name: "On Running",        countryId: countryMap.get("CH")!.id } }),
   ]);
-  const brands = [nike, adidas, ganni, apc, acneStudios];
 
-  const [shoes, clothing, accessories, outerwear, activewear] = await Promise.all([
-    prisma.category.create({ data: { name: "Shoes"       } }),
-    prisma.category.create({ data: { name: "Clothing"    } }),
-    prisma.category.create({ data: { name: "Accessories" } }),
-    prisma.category.create({ data: { name: "Outerwear"   } }),
-    prisma.category.create({ data: { name: "Activewear"  } }),
+  const categories = await Promise.all([
+    // Footwear
+    prisma.category.create({ data: { name: "Sneakers"      } }),
+    prisma.category.create({ data: { name: "Boots"         } }),
+    prisma.category.create({ data: { name: "Sandals"       } }),
+    prisma.category.create({ data: { name: "Heels"         } }),
+    prisma.category.create({ data: { name: "Loafers"       } }),
+    // Tops
+    prisma.category.create({ data: { name: "T-Shirts"      } }),
+    prisma.category.create({ data: { name: "Hoodies"       } }),
+    prisma.category.create({ data: { name: "Blouses"       } }),
+    prisma.category.create({ data: { name: "Shirts"        } }),
+    prisma.category.create({ data: { name: "Knitwear"      } }),
+    // Bottoms
+    prisma.category.create({ data: { name: "Jeans"         } }),
+    prisma.category.create({ data: { name: "Trousers"      } }),
+    prisma.category.create({ data: { name: "Shorts"        } }),
+    prisma.category.create({ data: { name: "Skirts"        } }),
+    prisma.category.create({ data: { name: "Leggings"      } }),
+    // Outerwear
+    prisma.category.create({ data: { name: "Jackets"       } }),
+    prisma.category.create({ data: { name: "Coats"         } }),
+    prisma.category.create({ data: { name: "Blazers"       } }),
+    prisma.category.create({ data: { name: "Vests"         } }),
+    // Dresses & Suits
+    prisma.category.create({ data: { name: "Dresses"       } }),
+    prisma.category.create({ data: { name: "Jumpsuits"     } }),
+    prisma.category.create({ data: { name: "Suits"         } }),
+    // Accessories
+    prisma.category.create({ data: { name: "Bags"          } }),
+    prisma.category.create({ data: { name: "Belts"         } }),
+    prisma.category.create({ data: { name: "Scarves"       } }),
+    prisma.category.create({ data: { name: "Hats"          } }),
+    prisma.category.create({ data: { name: "Sunglasses"    } }),
+    prisma.category.create({ data: { name: "Jewellery"     } }),
+    prisma.category.create({ data: { name: "Watches"       } }),
+    // Activewear
+    prisma.category.create({ data: { name: "Sports Tops"   } }),
+    prisma.category.create({ data: { name: "Sports Bottoms"} }),
+    prisma.category.create({ data: { name: "Sports Shoes"  } }),
   ]);
-  const categories = [shoes, clothing, accessories, outerwear, activewear];
 
   // ── 2. USERS (configurable) ───────────────────────────────────────────────
   console.log(`🌱 Seeding ${CONFIG.users} users...`);
@@ -93,9 +211,13 @@ async function seed() {
   console.log(`🌱 Seeding ${CONFIG.items} items...`);
 
   const itemNames = [
-    "Sneaker", "Hoodie", "Watch", "Jacket", "Dress",
-    "Shorts",  "Blouse", "Coat",  "Boots",  "Cap",
-    "Jeans",   "Shirt",  "Bag",   "Belt",   "Scarf",
+    "Sneaker", "Boot", "Sandal", "Heel", "Loafer",
+    "T-Shirt", "Hoodie", "Blouse", "Shirt", "Knit Sweater",
+    "Jeans", "Trousers", "Shorts", "Skirt", "Leggings",
+    "Jacket", "Coat", "Blazer", "Vest", "Puffer",
+    "Dress", "Jumpsuit", "Suit", "Co-ord Set",
+    "Tote Bag", "Crossbody", "Belt", "Scarf", "Cap",
+    "Sunglasses", "Necklace", "Watch", "Earrings", "Bracelet",
   ];
   const randomPrice = () => Math.floor(Math.random() * 500_000);
 
@@ -263,10 +385,10 @@ const seededImages = await Promise.all(
   // ── Summary ───────────────────────────────────────────────────────────────
   console.log("✅ Stress seed complete!");
   console.table({
-    countries:   5,
+    countries:   countries.length,
     roles:       2,
-    brands:      5,
-    categories:  5,
+    brands:      brands.length,
+    categories:  categories.length,
     users:       users.length,
     items:       items.length,
     closets:     closets.length,
