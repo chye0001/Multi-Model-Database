@@ -48,8 +48,8 @@ services:
     entrypoint: ["/bin/bash", "-c"]
     command:
       - |
-        echo "Waiting for first backup in 5 seconds..."
-        sleep 5
+        echo "First PostgreSQL backup in 24 hours..."
+        sleep 86400
         while true; do
           bash /usr/local/bin/backup.sh
           echo "Next backup in 24 hours..."
@@ -109,9 +109,14 @@ services:
     entrypoint: ["/bin/bash", "-c"]
     command:
       - |
-        sleep 10
+        echo "Installing Docker CLI..."
+        apt-get update -qq && apt-get install -y -qq docker.io
+        echo "Install complete."
+        echo "First Neo4j backup in 24 hours..."
+        sleep 86400
         while true; do
           bash /usr/local/bin/backup.sh
+          echo "Next backup in 24 hours..."
           sleep 86400
         done
     restart: unless-stopped
