@@ -117,11 +117,7 @@ Then call the custome restore script:
 ```bash
 npm run postgres:restore
 ```
-
-Afterwards do the cleanup step by calling:
-```bash
-npm run postgres:restore:cleanup
-```
+Note: if the restore script fails, do ensure that the WAL directory is clear and empty, then retry again.
 
 
 
