@@ -195,7 +195,7 @@ export class Neo4jUserRepository implements IUserRepository {
     async getAllUserClosets(userId: string): Promise<Closet[]> {
         try {
             if (!userId) throw new Error("Missing required user id.");
-
+console.log("CALLLELDLEDLDLLELDÆÅØ")
             const result = await neogma.queryRunner.run(`
                 MATCH (u:User {id: $userId})-[r:CREATES]->(cl:Closet)
                 OPTIONAL MATCH (cl)-[:STORES]->(i:Item)
@@ -213,7 +213,7 @@ export class Neo4jUserRepository implements IUserRepository {
                         }
                     END) AS sharedWith
             `, { userId });
-
+console.log(result.records.length, "@@@")
             if (result.records.length === 0) return [];
 
             return result.records.map((record) => formatUserCloset(record, "neo4j"));

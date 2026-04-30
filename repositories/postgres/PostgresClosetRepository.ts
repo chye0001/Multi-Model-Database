@@ -32,13 +32,44 @@ const closetInclude = {
     },
 };
 
+// Reusable select statement that explicitly includes userId
+const closetSelect = {
+    id: true,
+    name: true,
+    description: true,
+    isPublic: true,
+    createdAt: true,
+    userId: true,  // Explicitly select userId to ensure it's always included
+    closetItem: {
+        include: {
+            item: {
+                include: {
+                    category: true,
+                    images: true,
+                    itemBrands: {
+                        include: {
+                            brand: { include: { country: true } },
+                        },
+                    },
+                },
+            },
+        },
+    },
+    user: true,
+    sharedCloset: {
+        include: {
+            user: true,
+        },
+    },
+};
+
 
 export class PostgresClosetRepository implements IClosetRepository {
     async getAllClosets(): Promise<Closet[]> {
         try {
             const closets = await prisma.closet.findMany({
                 where: { isPublic: true },
-                include: closetInclude,
+                select: closetSelect,
             });
             return closets.map((closet) => formatUserCloset(closet, "postgresql"));
         } catch (error) {
@@ -52,7 +83,7 @@ export class PostgresClosetRepository implements IClosetRepository {
             const numericId = BigInt(id);
             const closet = await prisma.closet.findUnique({
                 where: { id: numericId },
-                include: closetInclude,
+                select: closetSelect,
             });
             if (!closet) return [];
             return [formatUserCloset(closet, "postgresql")];
@@ -78,7 +109,7 @@ export class PostgresClosetRepository implements IClosetRepository {
                     isPublic: data.isPublic,
                     userId: data.userId,
                 },
-                include: closetInclude,
+                select: closetSelect,
             });
             return [formatUserCloset(closet, "postgresql")];
         } catch (error) {
@@ -107,7 +138,7 @@ export class PostgresClosetRepository implements IClosetRepository {
             const closet = await prisma.closet.update({
                 where: { id: numericId },
                 data: patch,
-                include: closetInclude,
+                select: closetSelect,
             });
             return [formatUserCloset(closet, "postgresql")];
         } catch (error) {
@@ -190,7 +221,7 @@ export class PostgresClosetRepository implements IClosetRepository {
 
                 const closet = await tx.closet.findUnique({
                     where: { id: numericClosetId },
-                    include: closetInclude,
+                    select: closetSelect,
                 });
 
                 if (!closet) {
@@ -227,7 +258,7 @@ export class PostgresClosetRepository implements IClosetRepository {
 
                 const closet = await tx.closet.findUnique({
                     where: { id: numericClosetId },
-                    include: closetInclude,
+                    select: closetSelect,
                 });
 
                 if (!closet) {
@@ -248,7 +279,7 @@ export class PostgresClosetRepository implements IClosetRepository {
         try {
             const closets = await prisma.closet.findMany({
                 where: { userId },
-                include: closetInclude,
+                select: closetSelect,
             });
             return closets.map((closet) => formatUserCloset(closet, "postgresql"));
         } catch (error) {

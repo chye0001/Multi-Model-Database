@@ -1,7 +1,5 @@
 import type { IUserRepository } from "../repositories/interfaces/IUserRepository.js";
 
-
-
 export class UserService {
   constructor(private userRepository: IUserRepository) {}
 
@@ -13,11 +11,6 @@ export class UserService {
     return await this.userRepository.getUserById(id);
   }
 
-  async createUser(data: Partial<any>): Promise<any[]> {
-    data.id = data.id ?? crypto.randomUUID();
-    return await this.userRepository.createUser(data);
-  }
-
   async updateUser(id: string, data: Partial<any>): Promise<any[]> {
     return await this.userRepository.updateUser(id, data);
   }
@@ -25,8 +18,6 @@ export class UserService {
   async deleteUser(id: string): Promise<void> {
     await this.userRepository.deleteUser(id);
   }
-
-
 
   async assignRole(userEmail: string, roleName: string): Promise<any[]> {
     return await this.userRepository.assignRole(userEmail, roleName);

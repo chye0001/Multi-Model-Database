@@ -29,9 +29,11 @@ export class ClosetController {
 
     createCloset = async (req: Request, res: Response) => {
         try {
-            const { name, description, isPublic, userId } = req.body;
+            const { name, description, isPublic } = req.body;
+            const userId = req.session.userId;
+
             if (!name || typeof isPublic !== "boolean" || !userId) {
-                return res.status(400).send({ error: "name, isPublic, and userId are required" });
+                return res.status(400).send({ error: "name and isPublic are required" });
             }
 
             const created = await this.closetService.createCloset({

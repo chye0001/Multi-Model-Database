@@ -20,10 +20,14 @@ export class CompositeClosetRepository implements IClosetRepository {
     }
 
     async createCloset(data: { name: string; description?: string; isPublic: boolean; userId: string }): Promise<Closet[]> {
-        const results = await Promise.all(
-            this.repositories.map((repo) => repo.createCloset(data).catch(() => []))
+        try {
+            const results = await Promise.all(
+            this.repositories.map((repo) => repo.createCloset(data))
         );
         return results.flat();
+    }catch (error) {
+        throw error;
+    }
     }
 
     async updateCloset(id: string, data: Partial<{ name: string; description: string; isPublic: boolean }>): Promise<Closet[]> {

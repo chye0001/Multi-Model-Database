@@ -6,6 +6,7 @@ import type { User } from '../../dtos/users/User.dto.js';
 
 export class Neo4jAuthRepository implements IAuthRepository {
   async register(data: {
+    userId: string;
     email: string;
     passwordHash: string;
     firstName: string;
@@ -17,7 +18,7 @@ export class Neo4jAuthRepository implements IAuthRepository {
       const UserModel = getUserModel();
 
       const user = await UserModel.createOne({
-        id:        crypto.randomUUID(),
+        id:        data.userId,
         email:     data.email,
         password:  data.passwordHash,
         firstName: data.firstName,
@@ -41,7 +42,7 @@ export class Neo4jAuthRepository implements IAuthRepository {
     }
   }
 
-  async findByEmail(email: string): Promise<{ users: User[]; passwordHash: string } | null> {
+  async findByEmail(email: string): Promise<{ users: User[]; passwordHash: string; roleName: string } | null> {
     try {
       const result = await neogma.queryRunner.run(`
         MATCH (u:User { email: $email })-[:HAS]->(r:Role)
@@ -52,13 +53,66 @@ export class Neo4jAuthRepository implements IAuthRepository {
       if (result.records.length === 0) return null;
 
       const record = result.records[0]!;
+      const roleName = record.get('r').properties.role;
       return {
         users:        [formatUser(record, 'Neo4j')],
         passwordHash: record.get('u').properties.password,
+        roleName,
       };
     } catch (error) {
       console.error('Error finding user by email in Neo4j:', error);
       throw new Error('Failed to find user in Neo4j');
+    }
+  }
+
+  async findByIdWithRole(userId: string): Promise<{ users: User[]; roleName?: string } | null> {
+    try {
+      const result = await neogma.queryRunner.run(`
+        MATCH (u:User { id: $id })-[:HAS]->(r:Role)
+        MATCH (u)-[:IS_FROM]->(c:Country)
+        RETURN u, r, c
+      `, { id: userId });
+
+      if (result.records.length === 0) return null;
+
+      const record = result.records[0]!;
+      const roleName = record.get('r').properties.role;
+      return {
+        users: [formatUser(record, 'Neo4j')],
+        roleName,
+      };
+    } catch (error) {
+      console.error('Error finding user by ID in Neo4j:', error);
+      throw new Error('Failed to find user in Neo4j');
+    }
+  }
+
+  async userHasRole(userId: string, roleName: string): Promise<boolean> {
+    try {
+      const result = await neogma.queryRunner.run(`
+        MATCH (u:User { id: $id })-[:HAS]->(r:Role { role: $role })
+        RETURN COUNT(*) as count
+      `, { id: userId, role: roleName });
+
+      return result.records[0]?.get('count') > 0;
+    } catch (error) {
+      console.error('Error checking user role in Neo4j:', error);
+      return false;
+    }
+  }
+
+  async getUsersByRole(roleName: string): Promise<User[]> {
+    try {
+      const result = await neogma.queryRunner.run(`
+        MATCH (u:User)-[:HAS]->(r:Role { role: $role })
+        MATCH (u)-[:IS_FROM]->(c:Country)
+        RETURN u, r, c
+      `, { role: roleName });
+
+      return result.records.map((record) => formatUser(record, 'Neo4j'));
+    } catch (error) {
+      console.error('Error fetching users by role in Neo4j:', error);
+      throw new Error('Failed to fetch users by role');
     }
   }
 }

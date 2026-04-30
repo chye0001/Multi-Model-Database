@@ -104,7 +104,7 @@ export class Neo4jClosetRepository implements IClosetRepository {
                        userId: $userId,
                        createdAt: $createdAt
                      })
-                     CREATE (u)-[:HAS { createdAt: $createdAt }]->(cl)`,
+                     CREATE (u)-[:CREATES { createdAt: $createdAt }]->(cl)`,
                     {
                         id: nextId,
                         name: data.name,

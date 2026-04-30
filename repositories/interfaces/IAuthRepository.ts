@@ -2,6 +2,7 @@ import type { User } from '../../dtos/users/User.dto.js';
 
 export interface IAuthRepository {
   register(data: {
+    userId: string;
     email: string;
     passwordHash: string;
     firstName: string;
@@ -10,5 +11,12 @@ export interface IAuthRepository {
     countryId: number;
   }): Promise<User[]>;
 
-  findByEmail(email: string): Promise<{ users: User[]; passwordHash: string } | null>;
+  // Login logic is handled at the service layer (password verification)
+  // Repository provides findByEmail() to support login flow
+  findByEmail(email: string): Promise<{ users: User[]; passwordHash: string; roleName: string } | null>;
+
+  // RBAC support
+  findByIdWithRole(userId: string): Promise<{ users: User[]; roleName?: string } | null>;
+  userHasRole(userId: string, roleName: string): Promise<boolean>;
+  getUsersByRole(roleName: string): Promise<User[]>;
 }

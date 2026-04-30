@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { UserController } from '../controllers/UserController.js';
 import { UserService } from '../services/UserService.js';
 import { userRepositoryFactory } from '../repositories/factories/UserRepositoryFactory.js';
+import { canViewCloset } from '../middleware/closet-auth.middleware.ts';
 
 const router = Router();
 
@@ -13,7 +14,7 @@ const userController = new UserController(userService);
 // 2. Route Definitions
 router.get('/', userController.getAllUsers);
 router.get('/:id', userController.getUserById);
-router.post('/', userController.createUser);
+// NOTE: User creation is only available via POST /auth/register
 router.put('/:id', userController.updateUser);
 router.delete('/:id', userController.deleteUser);
 

@@ -10,8 +10,8 @@ export class AuthController {
       if (!email || !password || !firstName || !lastName || !roleId || !countryId) {
         return res.status(400).send({ error: 'Missing required fields' });
       }
-
-      const user = await this.authService.register({ email, password, firstName, lastName, roleId, countryId });
+      const userId = crypto.randomUUID();
+      const user = await this.authService.register({ userId, email, password, firstName, lastName, roleId, countryId });
       res.status(201).send(user);
     } catch (error: any) {
       res.status(400).send({ error: error?.message ?? 'Registration failed' });
@@ -25,13 +25,16 @@ export class AuthController {
         return res.status(400).send({ error: 'Email and password are required' });
       }
 
-      const users = await this.authService.login(email, password);
-      if (!users) {
+      const result = await this.authService.login(email, password);
+      if (!result) {
         return res.status(401).send({ error: 'Invalid email or password' });
       }
 
-      req.session.userId = users[0]!.id;
-      res.send(users);
+      // Store userId and role in session for RBAC
+      req.session.userId = result.users[0]!.id;
+      req.session.userRole = result.roleName;
+      
+      res.send(result.users);
     } catch (error: any) {
       res.status(500).send({ error: error?.message ?? 'Login failed' });
     }
