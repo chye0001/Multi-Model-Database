@@ -34,8 +34,9 @@ export const hasRole = (allowedRoles: string[]) => {
     if (!req.session.userId) {
       return res.status(401).send({ error: 'Unauthorized: Please log in' });
     }
-
-    if (!req.session.userRole || !allowedRoles.includes(req.session.userRole)) {
+    
+    allowedRoles = allowedRoles.map((role) => role.toLowerCase());
+    if (!req.session.userRole || !allowedRoles.includes(req.session.userRole.toLowerCase())) {
       return res.status(403).send({ error: 'Forbidden: Insufficient permissions' });
     }
 

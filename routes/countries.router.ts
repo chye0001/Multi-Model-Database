@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { countryRepositoryFactory } from '../repositories/factories/CountryRepositoryFactory.js';
 import { CountryService } from '../services/CountryService.js';
 import { CountryController } from '../controllers/CountryController.js';
+import { hasRole } from '../middleware/rbac.middleware.ts';
 
 const router = Router();
 
@@ -11,8 +12,8 @@ const countryController = new CountryController(countryService);
 
 router.get('/', countryController.getAllCountries);
 router.get('/:code', countryController.getCountryByCode);
-router.post('/', countryController.createCountry);
-router.delete('/:code', countryController.deleteCountry);
+router.post('/', hasRole(["admin"]), countryController.createCountry);
+router.delete('/:code', hasRole(["admin"]), countryController.deleteCountry);
 
 router.get('/:code/brands', countryController.getCountryBrands);
 

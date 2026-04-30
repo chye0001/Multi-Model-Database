@@ -27,7 +27,7 @@ export const userCanViewCloset = async (
   }
 
   // Owner can view their own closet
-  if (closet.user?.id === userId) {
+  if (closet.userId === userId) {
     return true;
   }
 
@@ -169,7 +169,7 @@ export const canModifyClosetItems = async (req: Request, res: Response, next: Ne
     }
 
     // Owner can modify their closet's items
-    if (closet.user?.id === req.session.userId) {
+    if (closet.userId === req.session.userId) {
       return next();
     }
 
@@ -221,7 +221,7 @@ export const canDeleteCloset = async (req: Request, res: Response, next: NextFun
     }
 
     // Only owner (or admin) can delete a closet
-    if (closet.user?.id !== req.session.userId) {
+    if (closet.userId !== req.session.userId) {
       return res.status(403).send({ error: 'Forbidden: Only the closet owner can delete it' });
     }
 
@@ -265,7 +265,7 @@ export const canUpdateClosetSettings = async (req: Request, res: Response, next:
     }
 
     // Only owner (or admin) can update closet settings
-    if (closet.user?.id !== req.session.userId) {
+    if (closet.userId !== req.session.userId) {
       return res.status(403).send({ error: 'Forbidden: Only the closet owner can update closet settings' });
     }
 
@@ -309,7 +309,7 @@ export const canManageCloset = async (req: Request, res: Response, next: NextFun
     }
 
     // Only owner (or admin) can manage a closet
-    if (closet.user?.id !== req.session.userId) {
+    if (closet.userId !== req.session.userId) {
       return res.status(403).send({ error: 'Forbidden: Only the closet owner can manage it' });
     }
 
