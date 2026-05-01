@@ -5,6 +5,8 @@ import { OutfitController } from "../controllers/OutfitController.js";
 import { reviewRepositoryFactory } from "../repositories/factories/ReviewRepositoryFactory.js";
 import { ReviewService } from "../services/ReviewService.js";
 import { ReviewController } from "../controllers/ReviewController.js";
+import { isAuthenticated } from "../middleware/rbac.middleware.js";
+import { canModifyOutfit } from "../middleware/outfit-auth.middleware.js";
 
 const router = Router();
 
@@ -19,13 +21,13 @@ const reviewController = new ReviewController(reviewService);
 router.get("/overview", outfitController.getOutfitOverview);
 router.get("/", outfitController.getAllOutfits);
 router.get("/:id", outfitController.getOutfitById);
-router.post("/", outfitController.createOutfit);
-router.patch("/:id", outfitController.updateOutfit);
-router.delete("/:id", outfitController.deleteOutfit);
+router.post("/", isAuthenticated, outfitController.createOutfit);
+router.patch("/:id", canModifyOutfit, outfitController.updateOutfit);
+router.delete("/:id", canModifyOutfit, outfitController.deleteOutfit);
 
 router.get("/:id/items", outfitController.getOutfitItems);
-router.post("/:id/items", outfitController.addItemToOutfit);
-router.delete("/:id/items/:itemId", outfitController.removeItemFromOutfit);
+router.post("/:id/items", isAuthenticated, outfitController.addItemToOutfit);
+router.delete("/:id/items/:itemId", canModifyOutfit, outfitController.removeItemFromOutfit);
 router.get("/:id/price", outfitController.getOutfitPrice);
 
 router.get("/:id/reviews", reviewController.getReviewsByOutfitId);

@@ -6,12 +6,12 @@ export class AuthController {
 
   register = async (req: Request, res: Response) => {
     try {
-      const { email, password, firstName, lastName, countryId } = req.body;
+      const { email, password, firstName, lastName, countryId, roleId } = req.body;
       if (!email || !password || !firstName || !lastName || !countryId) {
         return res.status(400).send({ error: 'Missing required fields' });
       }
       const userId = crypto.randomUUID();
-      const roleId = 2; // standard user. 1 = admin
+      // const roleId = 2; // standard user. 1 = admin
       const user = await this.authService.register({ userId, email, password, firstName, lastName, roleId, countryId });
       res.status(201).send(user);
     } catch (error: any) {
