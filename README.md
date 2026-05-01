@@ -66,3 +66,9 @@ Run the following command to start up the local backend:
 npm run dev
 ```
 
+
+
+
+# Tests
+Some database integration tests has also been included in this project - no other tests.
+To understand how to run these see the [README.md](./tests/README.md)
