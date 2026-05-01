@@ -7,7 +7,7 @@ import { prisma } from "../prisma-client.js";
 // Adjust these numbers to control how much data gets seeded
 const CONFIG = {
   users:               100,  // number of users to create
-  items:               10000,  // number of items to create
+  items:               100,  // number of items to create
   closets:             100,  // number of closets to create (spread across users)
   // outfits:             10,  // number of outfits to create
   reviews:             100,  // number of reviews (one per outfit)
@@ -33,7 +33,7 @@ const pickN = (arr, n) => {
 // Utility: short uuid suffix for unique names
 const uid = () => randomUUID().split("-")[0];
 
-async function seed() {
+async function seed(isTestRun = false) {
 
   const hashedPassword = await bcrypt.hash("test", 10);
 
@@ -399,12 +399,17 @@ const seededImages = await Promise.all(
     sharedClosets: sharedClosetCount,
     images: seededImages.length
   });
+
+  if (!isTestRun) {
+    await prisma.$disconnect();
+  }
 }
 
-seed()
-  .then(async () => { await prisma.$disconnect(); })
-  .catch(async (e) => {
-    console.error(e);
-    await prisma.$disconnect();
-    process.exit(1);
-  });
+if (process.argv[1]?.endsWith("seed.ts") || process.argv[1]?.endsWith("seed.js")) {
+  seed()
+    .catch(async (e) => {
+      console.error(e);
+      await prisma.$disconnect();
+      process.exit(1);
+    });
+}

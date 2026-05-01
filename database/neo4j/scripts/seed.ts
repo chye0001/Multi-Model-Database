@@ -56,7 +56,7 @@ async function step(label: string, fn: () => Promise<void>): Promise<void> {
 // Main
 // ─────────────────────────────────────────────
 
-async function seed() {
+export async function seed(isTestRun = false) {
   console.log("🌱  Starting seed...");
 
   // ── 1. Roles ──────────────────────────────────────────────────────────────
@@ -365,12 +365,12 @@ async function seed() {
       await userAlice.relateTo({
         alias: "outfits",
         where: { id: outfitCasual.id },
-        properties: { createdAt: now },
+        properties: { dateAdded: now },
       });
       await userBob.relateTo({
         alias: "outfits",
         where: { id: outfitSmart.id },
-        properties: { createdAt: now },
+        properties: { dateAdded: now },
       });
     },
   );
@@ -422,10 +422,13 @@ async function seed() {
 
   // ─────────────────────────────────────────────
   console.log("\n🎉  Seed complete!\n");
-  await neogma.driver.close();
+  if (!isTestRun) {
+    await neogma.driver.close();
+  }
 }
-
-seed().catch((err) => {
-  console.error("❌  Seed failed:", err);
-  process.exit(1);
-});
+if (process.argv[1]?.endsWith("seed.ts") || process.argv[1]?.endsWith("seed.js")) {
+  seed().catch((err) => {
+    console.error("❌  Seed failed:", err);
+    process.exit(1);
+  });
+}

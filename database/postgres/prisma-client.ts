@@ -3,29 +3,33 @@ import { PrismaClient } from "./generated/postgres/index.js";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { Pool } from "pg";
 
-
-
 const env = process.env.NODE_ENV ?? "dev";
 if (!["dev", "test", "prod"].includes(env)) {
   throw new Error(`Invalid NODE_ENV value: ${env}. Expected "dev", "test", or "prod".`);
 }
 
-const databaseUrl = process.env[`POSTGRES_DATABASE_URL_${env.toUpperCase()}`];
+// ── Lazy singleton ────────────────────────────────────────────────────────────
+// Do NOT read env vars at module load time — they may not be set yet
+// (e.g. when Testcontainers sets them in beforeAll)
 
-if (!databaseUrl) {
-  throw new Error("POSTGRES_DATABASE_URL environment variable is required");
+let _prisma: PrismaClient | null = null;
+
+export function getPrisma(): PrismaClient {
+  if (_prisma) return _prisma;
+
+  const databaseUrl = process.env[`POSTGRES_DATABASE_URL_${env.toUpperCase()}`];
+  if (!databaseUrl) {
+    throw new Error(`POSTGRES_DATABASE_URL_${env.toUpperCase()} environment variable is required`);
+  }
+
+  const adapter = new PrismaPg(new Pool({ connectionString: databaseUrl }));
+  _prisma = new PrismaClient({ adapter, log: ["query", "error", "warn"] });
+  return _prisma;
 }
 
-const globalForPrisma = globalThis as { prisma?: PrismaClient };
-const adapter = new PrismaPg(new Pool({ connectionString: databaseUrl }));
-
-export const prisma =
-  globalForPrisma.prisma ??
-  new PrismaClient({
-    adapter,
-    log: ["query", "error", "warn"],
-  });
-
-if (process.env.NODE_ENV !== "production") {
-  globalForPrisma.prisma = prisma;
-}
+// Keep backward compat — existing code using `prisma` directly still works
+export const prisma = new Proxy({} as PrismaClient, {
+  get(_target, prop) {
+    return (getPrisma() as any)[prop];
+  },
+});
