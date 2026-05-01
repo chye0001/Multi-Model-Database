@@ -54,6 +54,7 @@ model Outfit {
   id         BigInt   @id @default(autoincrement())
   name       String
   style      String
+  aiSummary  String?
   dateAdded  DateTime @default(now())
 
   createdBy String @db.Uuid

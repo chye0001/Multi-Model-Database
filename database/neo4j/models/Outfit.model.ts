@@ -17,6 +17,8 @@ export interface OutfitProperties {
   name?: string;
   /** Style tag, e.g. "casual", "formal". Optional. */
   style?: string;
+  /** AI-generated summary of the outfit. Optional. */
+  aiSummary?: string;
 
   [key: string]: any;
 }
@@ -55,6 +57,10 @@ function buildOutfitModel() {
           required: false,
         },
         style: {
+          type: "string",
+          required: false,
+        },
+        aiSummary: {
           type: "string",
           required: false,
         },

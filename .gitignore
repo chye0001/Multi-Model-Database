@@ -1,5 +1,6 @@
 /node_modules
 .env
+.env.backup
 **generated
 
 # Backup folders — existing backups remain on remote, future ones ignored
