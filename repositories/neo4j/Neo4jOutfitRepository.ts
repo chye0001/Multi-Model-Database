@@ -396,6 +396,23 @@ export class Neo4jOutfitRepository implements IOutfitRepository {
             throw new Error("Failed to fetch outfit overview from Neo4j");
         }
     }
+  
+    async updateAiSummary(id: string, aiSummary: string): Promise<Outfit[]> {
+      try {
+          const numericId = this.parseNumericId(id, "outfit id");
+
+          await neogma.queryRunner.run(
+              `MATCH (o:Outfit { id: $id })
+               SET o.aiSummary = $aiSummary`,
+              { id: numericId, aiSummary }
+          );
+
+          return await this.getOutfitById(id);
+      } catch (error) {
+          console.error(`Error updating AI summary for outfit ${id} in Neo4j:`, error);
+          throw new Error("Failed to update AI summary in Neo4j");
+      }
+    }
 
     private parseNumericId(value: string, fieldName: string): number {
         const parsed = Number(value);

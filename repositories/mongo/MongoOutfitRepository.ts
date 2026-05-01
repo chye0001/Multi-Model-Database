@@ -267,4 +267,21 @@ export class MongoOutfitRepository implements IOutfitRepository {
             throw new Error("Failed to calculate outfit price in MongoDB");
         }
     }
+    
+    async updateAiSummary(id: string, aiSummary: string): Promise<OutfitDto[]> {
+        try {
+            const numericId = this.parseNumericId(id, "outfit id");
+            const updated = await Outfit.findOneAndUpdate(
+                { id: numericId },
+                { aiSummary },
+                { new: true }
+            ).lean().exec();
+
+            if (!updated) return [];
+            return [formatUserOutfit(updated, "mongodb")];
+        } catch (error) {
+            console.error(`Error updating AI summary for outfit ${id} in MongoDB:`, error);
+            throw new Error("Failed to update AI summary in MongoDB");
+        }
+    }
 }
