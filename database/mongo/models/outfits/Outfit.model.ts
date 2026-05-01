@@ -25,6 +25,7 @@ export interface IOutfit extends Document {
   id: number;
   name: string;
   style: string;
+  aiSummary?: string;
   dateAdded: Date;
   createdBy: {
     id: string;
@@ -59,6 +60,7 @@ const OutfitSchema = new Schema<IOutfit>(
     id:        { type: Number, required: true, unique: true },
     name:      { type: String, required: true, trim: true },
     style:     { type: String, required: true, trim: true },
+    aiSummary: { type: String, trim: true },
     createdBy: CompactUserSchema,
     items: [
       {

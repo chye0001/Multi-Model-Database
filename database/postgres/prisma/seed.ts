@@ -305,7 +305,7 @@ async function seed(isTestRun = false) {
   }
 
   // ── 6. REVIEWS (configurable) ─────────────────────────────────────────────
-  console.log(`🌱 Seeding ${CONFIG.reviews} reviews...`);
+  console.log(`🌱 Seeding ${CONFIG.reviews} random reviews + guaranteed reviews for outfits 1, 2, and 3...`);
 
   const reviewTexts = [
     "Absolutely love this!", "Great quality, would buy again.",
@@ -314,20 +314,57 @@ async function seed(isTestRun = false) {
     "The color palette is chef's kiss.", "Amazing and super comfortable.",
   ];
 
-  await Promise.all(
-    outfits.map((outfit) => {
-      // pick a reviewer that is not the outfit creator
-      const eligibleReviewers = users.filter((u) => u.id !== outfit.createdBy);
-      return prisma.review.create({
+  const guaranteedOutfitIds = new Set([1n, 2n, 3n]);
+
+  // Keep random reviews on non-guaranteed outfits so outfits 1,2,3 end up at exactly 10 each.
+  const randomReviewOutfits = outfits.filter((o) => !guaranteedOutfitIds.has(o.id));
+  const randomReviewPool = randomReviewOutfits.length > 0 ? randomReviewOutfits : outfits;
+
+  const randomReviewCreates = Array.from({ length: CONFIG.reviews }, () => {
+    const outfit = pick(randomReviewPool);
+    const eligibleReviewers = users.filter((u) => u.id !== outfit.createdBy);
+    const reviewerPool = eligibleReviewers.length > 0 ? eligibleReviewers : users;
+
+    return prisma.review.create({
+      data: {
+        score:     Math.floor(Math.random() * 2) + 4,
+        text:      pick(reviewTexts),
+        writtenBy: pick(reviewerPool).id,
+        outfitId:  outfit.id,
+      },
+    });
+  });
+
+  const outfitsById = new Map(outfits.map((o) => [o.id, o]));
+  const guaranteedOutfits = [1n, 2n, 3n]
+    .map((id) => outfitsById.get(id))
+    .filter((o): o is (typeof outfits)[number] => Boolean(o));
+
+  const missingGuaranteedIds = [1n, 2n, 3n].filter((id) => !outfitsById.has(id));
+  if (missingGuaranteedIds.length > 0) {
+    console.warn(
+      `⚠️ Could not find outfit IDs: ${missingGuaranteedIds.map((id) => id.toString()).join(", ")}. Guaranteed reviews were only created for existing IDs.`
+    );
+  }
+
+  const guaranteedReviewCreates = guaranteedOutfits.flatMap((outfit) => {
+    const eligibleReviewers = users.filter((u) => u.id !== outfit.createdBy);
+    const reviewerPool = eligibleReviewers.length > 0 ? eligibleReviewers : users;
+
+    return Array.from({ length: 10 }, () =>
+      prisma.review.create({
         data: {
           score:     Math.floor(Math.random() * 2) + 4,
           text:      pick(reviewTexts),
-          writtenBy: pick(eligibleReviewers).id,
+          writtenBy: pick(reviewerPool).id,
           outfitId:  outfit.id,
         },
-      });
-    })
-  );
+      })
+    );
+  });
+
+  await Promise.all([...randomReviewCreates, ...guaranteedReviewCreates]);
+  const totalReviewsCreated = randomReviewCreates.length + guaranteedReviewCreates.length;
 
   // ── 7. SHARED CLOSETS (configurable) ─────────────────────────────────────
   // For each user, share N random closets FROM other users WITH them.
@@ -395,7 +432,7 @@ const seededImages = await Promise.all(
     closetItems: closetItemsCreated.length,
     outfits: users.length * CONFIG.outfitsPerUser,
     outfitItems:   users.length * CONFIG.outfitsPerUser * CONFIG.itemsPerOutfit,
-    reviews:       outfits.length, //only 1 reviev per outfit
+    reviews:       totalReviewsCreated,
     sharedClosets: sharedClosetCount,
     images: seededImages.length
   });

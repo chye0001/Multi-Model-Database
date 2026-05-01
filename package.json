@@ -7,7 +7,6 @@
     "dev": "tsx watch app.ts",
     "test": "echo \"Error: no test specified\" && exit 1",
     "build": "tsc",
-
     "prisma:migrate": "prisma migrate dev",
     "prisma:generate": "prisma generate",
     "prisma:studio": "prisma studio",
@@ -17,18 +16,15 @@
     "postgres:backup": "docker exec postgres_backup bash /usr/local/bin/backup.sh",
     "postgres:restore": "tsx ./database/postgres/backups/restore.ts",
     "postgres:restore:cleanup": "tsx ./database/postgres/backups/restore.ts cleanup",
-
     "mongo:seed": "tsx database/mongo/scripts/seed.ts",
     "mongo:reset": "tsx database/mongo/scripts/reset.ts",
     "mongo:generate-keyfile": "tsx ./database/mongo/scripts/generate-keyfile.ts",
     "mongo:backup": "docker exec mongo_backup bash /usr/local/bin/backup.sh",
     "mongo:restore": "node ./database/mongo/backups/restore.js",
-
     "neo4j:seed": "tsx database/neo4j/scripts/seed.ts",
     "neo4j:reset": "tsx database/neo4j/scripts/reset.ts",
     "neo4j:backup": "docker exec neo4j_backup bash /usr/local/bin/backup.sh",
     "neo4j:restore": "node ./database/neo4j/backups/restore.js",
-
     "all-databases:reset": "npm run prisma:reset && npm run mongo:reset && npm run neo4j:reset",
     "all-databases:migrate": "tsx database/migrate.ts",
     "all-databases:seed": "prisma db seed && tsx database/mongo/scripts/seed.ts && tsx database/neo4j/scripts/seed.ts",
@@ -48,6 +44,7 @@
   "license": "ISC",
   "type": "module",
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.92.0",
     "@prisma/adapter-pg": "^7.3.0",
     "@prisma/client": "^7.3.0",
     "@types/bcrypt": "^6.0.0",
