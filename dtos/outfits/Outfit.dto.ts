@@ -8,6 +8,7 @@ export type Outfit = {
   id: number;
   name: string;
   style: string;
+  aiSummary?: string;
   dateAdded: Date;
   createdBy: EmbeddedUser;   // was string (userId), now a user snapshot
   items: ClothingItem[];

@@ -122,5 +122,16 @@ export class CompositeOutfitRepository implements IOutfitRepository {
             throw error;
         }
     }
+  
+    async updateAiSummary(id: string, aiSummary: string): Promise<Outfit[]> {
+        try {
+            isRepositoriesEnabled(this.enabledRepos);
+            const results = await Promise.all(this.enabledRepos.map((repo) => repo.updateAiSummary(id, aiSummary)));
+            return results.flat();
+        } catch (error) {
+            console.error(`Error updating AI summary for outfit ${id} in repositories:`, error);
+            throw error;
+        }
+    }
 
 }

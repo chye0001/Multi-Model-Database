@@ -2,6 +2,7 @@ import type { IOutfitRepository } from "../repositories/interfaces/IOutfitReposi
 import type { Outfit } from "../dtos/outfits/Outfit.dto.js";
 import type { ClothingItem } from "../dtos/items/Item.dto.js";
 import type { OutfitOverview } from "../dtos/outfits/OutfitOverview.dto.js";
+import type { Review } from "../dtos/reviews/Review.dto.ts";
 
 export class OutfitService {
     constructor(private outfitRepository: IOutfitRepository) {}
@@ -49,6 +50,10 @@ export class OutfitService {
     async getOutfitPrice(id: string): Promise<number> {
         return await this.outfitRepository.getOutfitPrice(id);
     }
+  
+  async updateAiSummary(id: string, aiSummary: string): Promise<Outfit[]> {
+    return await this.outfitRepository.updateAiSummary(id, aiSummary);
+  }
 
 
 }

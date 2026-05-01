@@ -1,7 +1,10 @@
 services:
   postgres:
     container_name: postgres_database
-    image: ${DOCKER_HUB_USERNAME}/database-postgres:latest
+    build:
+      context: .
+      dockerfile: Dockerfilepostgress
+    image: local/database-postgres:latest
     command: >
       postgres
       -c config_file=/etc/postgresql/postgresql.conf

@@ -182,6 +182,7 @@ export function formatUserOutfit(outfit: any, database: string): Outfit {
             id:        Number(o.id),
             name:      o.name ?? undefined,
             style:     o.style ?? undefined,
+            aiSummary: o.aiSummary ?? undefined,
             dateAdded: dateAdded ? new Date(dateAdded) : new Date(),
             createdBy,
             items,
@@ -194,6 +195,7 @@ export function formatUserOutfit(outfit: any, database: string): Outfit {
         id:        Number(outfit.id),
         name:      outfit.name,
         style:     outfit.style,
+        aiSummary: outfit.aiSummary ?? undefined,
         dateAdded: outfit.dateAdded,
 
         // postgresql now includes user relation for createdBy snapshot

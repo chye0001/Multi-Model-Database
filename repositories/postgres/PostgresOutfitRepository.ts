@@ -320,4 +320,19 @@ export class PostgresOutfitRepository implements IOutfitRepository {
             throw new Error("Failed to calculate outfit price in PostgreSQL");
         }
     }
+  
+  async updateAiSummary(id: string, aiSummary: string): Promise<Outfit[]> {
+    try {
+      const numericId = this.parseBigIntId(id, "outfit id");
+      const outfit = await prisma.outfit.update({
+        where: { id: numericId },
+        data: { aiSummary },
+        include: outfitInclude,
+      });
+      return [formatUserOutfit(outfit, "postgresql")];
+    } catch (error) {
+      console.error(`Error updating AI summary for outfit ${id} in PostgreSQL:`, error);
+      throw new Error("Failed to update AI summary for outfit in PostgreSQL");
+    }
+  }
 }
