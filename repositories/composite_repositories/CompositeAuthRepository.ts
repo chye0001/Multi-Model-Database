@@ -29,8 +29,9 @@ export class CompositeAuthRepository implements IAuthRepository {
       isRepositoriesEnabled(this.enabledRepos);
       const results = await Promise.all(this.enabledRepos.map(repo => repo.findByEmail(email)));
       const found = results.filter(r => r !== null);
-      if (found[0]?.roleName === undefined) throw new Error("Missing role on user");
       if (found.length === 0) return null;
+      if (found[0]?.roleName === undefined) throw new Error("Missing role on user");
+      
       return {
         users:        found.flatMap(r => r.users),
         passwordHash: found[0]!.passwordHash,

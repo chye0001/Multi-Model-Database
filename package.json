@@ -27,7 +27,14 @@
     "neo4j:restore": "node ./database/neo4j/backups/restore.js",
     "all-databases:reset": "npm run prisma:reset && npm run mongo:reset && npm run neo4j:reset",
     "all-databases:migrate": "tsx database/migrate.ts",
-    "all-databases:seed": "prisma db seed && tsx database/mongo/scripts/seed.ts && tsx database/neo4j/scripts/seed.ts"
+    "all-databases:seed": "prisma db seed && tsx database/mongo/scripts/seed.ts && tsx database/neo4j/scripts/seed.ts",
+
+    "test:integration": "vitest run --config vitest.integration.config.ts",
+    "test:integration:watch": "vitest --config vitest.integration.config.ts",
+    "test:integration:postgres": "vitest run --config vitest.integration.config.ts tests/integrations/auth/PostgresAuthRepository.test.ts",
+    "test:integration:mongo": "vitest run --config vitest.integration.config.ts tests/integrations/auth/MongoAuthRepository.test.ts",
+    "test:integration:neo4j": "vitest run --config vitest.integration.config.ts tests/integrations/auth/Neo4jAuthRepository.test.ts",
+    "test:integration:all-dbs": "vitest run --config vitest.integration.config.ts tests/integrations/auth/CompositeAuthRepository.test.ts"
   },
   "prisma": {
     "schema": "./database/postgres/prisma/schema.prisma"
@@ -52,13 +59,18 @@
     "pg": "^8.18.0"
   },
   "devDependencies": {
+    "@testcontainers/mongodb": "^11.14.0",
+    "@testcontainers/neo4j": "^11.14.0",
+    "@testcontainers/postgresql": "^11.14.0",
     "@types/express": "^5.0.6",
     "@types/node": "^25.2.2",
     "@types/pg": "^8.16.0",
     "cross-env": "^10.1.0",
     "dotenv-cli": "^11.0.0",
     "prisma": "^7.3.0",
+    "testcontainers": "^11.14.0",
     "tsx": "^4.21.0",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.5"
   }
 }
