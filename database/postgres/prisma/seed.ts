@@ -279,15 +279,32 @@ async function seed(isTestRun = false) {
   // ── 5. OUTFITS (configurable) ─────────────────────────────────────────────
   console.log(`🌱 Seeding ${users.length * CONFIG.outfitsPerUser} outfits...`);
 
+  const aiSummaries = [
+    "A sleek streetwear look anchored by monochrome tones and statement sneakers. The layering adds depth without sacrificing mobility.",
+    "Effortless minimalism at its best — clean silhouettes, neutral palette, and understated accessories let the tailoring speak for itself.",
+    "A bold maximalist outfit that blends rich textures and contrasting colours. High-impact pieces are balanced by a restrained accessory choice.",
+    "Relaxed bohemian energy with flowing fabrics and earthy tones. The mix of patterns feels intentional and cohesive rather than chaotic.",
+    "Sharp formal dressing with a modern twist. Classic suiting is updated with contemporary cuts and a muted colour story.",
+    "Athletic-inspired co-ordination with technical fabrics and clean lines. Functional design meets elevated style seamlessly.",
+    "Vintage-leaning silhouettes paired with contemporary staples create a timeless yet fresh aesthetic. The tonal layering ties everything together.",
+    "An unexpected mix of casual basics and luxury accessories that elevates the everyday. Contrast in price point makes the look feel curated.",
+    "A nature-inspired palette of greens and browns grounds this outfit in an organic, outdoorsy aesthetic. The textures reinforce the earthy mood.",
+    "Effortless Scandinavian cool — pared-back pieces, high-quality fabrics, and a commitment to function over flash.",
+    "A confident colour-blocking approach that keeps proportions balanced. Each piece holds its own while contributing to a unified statement.",
+    "Classic layering done right: a lightweight base, structured mid-layer, and an outer shell that ties the palette together.",
+  ];
+
   const outfits = await Promise.all(
     users.flatMap((user) =>
       Array.from({ length: CONFIG.outfitsPerUser }, () => {
         const id = uid();
+        const hasSummary = Math.random() > 0.5;
         return prisma.outfit.create({
           data: {
             name:      `Outfit-${id}`,
             style:     pick(styles),
             createdBy: user.id,
+            ...(hasSummary ? { aiSummary: pick(aiSummaries) } : {}),
           },
         });
       })

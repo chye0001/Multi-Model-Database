@@ -297,9 +297,10 @@ async function migrate() {
       pgOutfits.map((outfit) => {
         const pgCreator = pgUsers.find((u) => u.id === outfit.createdBy)!;
         return {
-          id:    Number(outfit.id),
-          name:  outfit.name,
-          style: outfit.style,
+          id:        Number(outfit.id),
+          name:      outfit.name,
+          style:     outfit.style,
+          aiSummary: outfit.aiSummary ?? null,
           createdBy: {
             id:        pgCreator.id,
             firstName: pgCreator.firstName,
@@ -581,6 +582,7 @@ async function migrate() {
         id:    Number(o.id),
         name:  o.name,
         style: o.style,
+        ...(o.aiSummary !== null ? { aiSummary: o.aiSummary } : {}),
       });
       neo4jOutfits.set(Number(o.id), node);
     }
