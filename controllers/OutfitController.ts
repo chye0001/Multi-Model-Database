@@ -1,8 +1,10 @@
 import type { Request, Response } from "express";
 import type { OutfitService } from "../services/OutfitService.js";
+import type { ReviewService } from "../services/ReviewService.ts";
+import type { AiService } from "../services/AiService.ts";
 
 export class OutfitController {
-    constructor(private outfitService: OutfitService) {}
+    constructor(private outfitService: OutfitService, private reviewService: ReviewService, private aiService: AiService) {}
 
     getAllOutfits = async (req: Request, res: Response) => {
         try {
@@ -152,7 +154,23 @@ export class OutfitController {
             res.status(500).send({ error: error?.message ?? "Internal Server Error" });
         }
     };
+  
+    updateAiSummary = async (req: Request, res: Response) => {
+        try {
+            const id = req.params.id as string;
+            const reviews = await this.reviewService.getOutfitReviews(id);
 
+            if (!id) return res.status(400).send({ error: "Outfit ID is required" });
+          
+            const aiSummary = await this.aiService.generateSummary(reviews);
 
+            const summary = await this.outfitService.updateAiSummary(id, aiSummary);
+            if (!summary) return res.status(404).send({ error: "Outfit not found" });
+
+            res.send({ aiSummary: summary });
+        } catch (error: any) {
+            res.status(400).send({ error: error?.message ?? "Failed to update AI summary" });
+        }
+    };
 
 }

@@ -277,6 +277,7 @@ export class MongoOutfitRepository implements IOutfitRepository {
                 { new: true }
             ).lean().exec();
 
+            
             if (!updated) return [];
             return [formatUserOutfit(updated, "mongodb")];
         } catch (error) {
