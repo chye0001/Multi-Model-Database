@@ -164,10 +164,10 @@ export class OutfitController {
           
             const aiSummary = await this.aiService.generateSummary(reviews);
 
-            const summary = await this.outfitService.updateAiSummary(id, aiSummary);
-            if (!summary) return res.status(404).send({ error: "Outfit not found" });
+            const updated = await this.outfitService.updateAiSummary(id, aiSummary);
+            if (updated.length === 0) return res.status(404).send({ error: "Outfit not found" });
 
-            res.send({ aiSummary: summary });
+            res.send(updated);
         } catch (error: any) {
             res.status(400).send({ error: error?.message ?? "Failed to update AI summary" });
         }
