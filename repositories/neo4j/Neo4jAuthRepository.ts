@@ -1,6 +1,7 @@
 import { getUserModel } from '../../database/neo4j/models/index.js';
 import { neogma } from '../../database/neo4j/neogma-client.js';
 import { formatUser } from '../../utils/repository_utils/ObjectFormatters.js';
+import { audit } from '../../utils/audit/AuditLogger.js';
 import type { IAuthRepository } from '../interfaces/IAuthRepository.js';
 import type { User } from '../../dtos/users/User.dto.js';
 
@@ -113,6 +114,37 @@ export class Neo4jAuthRepository implements IAuthRepository {
     } catch (error) {
       console.error('Error fetching users by role in Neo4j:', error);
       throw new Error('Failed to fetch users by role');
+    }
+  }
+
+  async assignRole(userEmail: string, roleName: string): Promise<User[]> {
+    audit({
+      timestamp: new Date().toISOString(),
+      event: 'RELATIONSHIP_CREATE',
+      label: 'User-[:HAS]->Role',
+      params: { userEmail, roleName },
+      source: 'Neo4jAuthRepository.assignRole',
+    });
+    try {
+      await neogma.queryRunner.run(`
+        MATCH (u:User { email: $userEmail })-[rel:HAS]->(old:Role)
+        DELETE rel
+        WITH u
+        MATCH (r:Role { name: $roleName })
+        CREATE (u)-[:HAS]->(r)
+      `, { userEmail, roleName });
+
+      const result = await neogma.queryRunner.run(`
+        MATCH (u:User { email: $userEmail })-[:HAS]->(r:Role)
+        MATCH (u)-[:IS_FROM]->(c:Country)
+        RETURN u, r, c
+      `, { userEmail });
+
+      if (result.records.length === 0) throw new Error('User not found');
+      return [formatUser(result.records[0]!, 'Neo4j')];
+    } catch (error) {
+      console.error(`Error assigning role to user with email ${userEmail} in Neo4j:`, error);
+      throw new Error('Failed to assign role in Neo4j');
     }
   }
 }

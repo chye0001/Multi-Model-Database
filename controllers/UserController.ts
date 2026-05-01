@@ -49,22 +49,6 @@ export class UserController {
     res.status(204).send();
   };
 
-  assignRole = async (req: Request, res: Response) => {
-    try {
-      const { userEmail, role } = req.body;
-      if (!userEmail) {
-        return res.status(400).send({ error: 'User email is required' });
-      }
-      if (!role) {
-        return res.status(400).send({ error: 'Role name is required' });
-      }
-      const updated = await this.userService.assignRole(userEmail, role);
-      res.send(updated);
-    } catch (error: any) {
-      res.status(400).send({ error: error?.message ?? 'Failed to assign role' });
-    }
-  };
-
   // Relationship-based routes
   getUserClosets = async (req: Request, res: Response) => {
     const userId = req.params.id as string;

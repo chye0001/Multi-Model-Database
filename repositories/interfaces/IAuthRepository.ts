@@ -19,4 +19,5 @@ export interface IAuthRepository {
   findByIdWithRole(userId: string): Promise<{ users: User[]; roleName?: string } | null>;
   userHasRole(userId: string, roleName: string): Promise<boolean>;
   getUsersByRole(roleName: string): Promise<User[]>;
+  assignRole(userEmail: string, roleName: string): Promise<User[]>;
 }

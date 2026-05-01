@@ -82,4 +82,15 @@ export class CompositeAuthRepository implements IAuthRepository {
       throw error;
     }
   }
+
+  async assignRole(userEmail: string, roleName: string): Promise<User[]> {
+    try {
+      isRepositoriesEnabled(this.enabledRepos);
+      const results = await Promise.all(this.enabledRepos.map(repo => repo.assignRole(userEmail, roleName)));
+      return results.flat();
+    } catch (error) {
+      console.error(`Error assigning role to user with email ${userEmail} in repositories:`, error);
+      throw error;
+    }
+  }
 }

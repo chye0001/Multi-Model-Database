@@ -1,5 +1,6 @@
-import { User, Country } from '../../database/mongo/models/index.js';
+import { User, Country, Role } from '../../database/mongo/models/index.js';
 import { formatUser } from '../../utils/repository_utils/ObjectFormatters.js';
+import { audit } from '../../utils/audit/AuditLogger.js';
 import type { IAuthRepository } from '../interfaces/IAuthRepository.js';
 import type { User as UserDto } from '../../dtos/users/User.dto.js';
 
@@ -85,6 +86,33 @@ export class MongoAuthRepository implements IAuthRepository {
     } catch (error) {
       console.error('Error fetching users by role in MongoDB:', error);
       throw new Error('Failed to fetch users by role');
+    }
+  }
+
+  async assignRole(userEmail: string, roleName: string): Promise<UserDto[]> {
+    audit({
+      timestamp: new Date().toISOString(),
+      event: 'DOCUMENT_UPDATE',
+      label: 'User.role',
+      params: { userEmail, roleName },
+      source: 'MongoAuthRepository.assignRole',
+    });
+    try {
+      const role = await Role.findOne({ name: roleName }).lean().exec();
+      if (!role) throw new Error(`Role "${roleName}" not found`);
+
+      const updated = await User.findOneAndUpdate(
+        { email: userEmail },
+        { role: { id: role.id, name: role.name } },
+        { new: true }
+      ).lean().exec();
+
+      if (!updated) throw new Error('User not found');
+
+      return [formatUser(updated, 'MongoDB')];
+    } catch (error) {
+      console.error(`Error assigning role to user with email ${userEmail} in MongoDB:`, error);
+      throw new Error('Failed to assign role in MongoDB');
     }
   }
 

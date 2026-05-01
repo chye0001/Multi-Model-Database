@@ -124,28 +124,6 @@ export class PostgresUserRepository implements IUserRepository {
         }
     }
 
-    async assignRole(userEmail: string, roleName: string): Promise<User[]> {
-        audit({
-            timestamp: new Date().toISOString(),
-            event: 'ROW_UPDATE',
-            label: 'users.roleId',
-            params: { userEmail, roleName },
-            source: 'PostgresUserRepository.assignRole',
-        });
-        
-        try {
-            const updated = await prisma.user.update({
-                where: { email: userEmail },
-                data:  { role: { connect: { role: roleName } } },
-                include: { role: true, country: true },
-            });
-            return [formatUser(updated, "PostgreSQL")];
-        } catch (error) {
-            console.error(`Error assigning role to user ${userEmail} in PostgreSQL:`, error);
-            throw new Error("Failed to assign role in PostgreSQL");
-        }
-    }
-
     async getAllUserClosets(userId: string): Promise<Closet[]> {
         try {
             const closets = await prisma.closet.findMany({

@@ -161,37 +161,6 @@ export class Neo4jUserRepository implements IUserRepository {
 
 
 
-    async assignRole(userEmail: string, roleName: string): Promise<any[]> {
-        audit({
-            timestamp: new Date().toISOString(),
-            event: 'RELATIONSHIP_CREATE',
-            label: 'User-[:HAS]->Role',
-            params: { userEmail, roleName },
-            source: 'Neo4jUserRepository.assignRole',
-        });
-        try {
-            await neogma.queryRunner.run(`
-                MATCH (u:User { email: $userEmail })-[rel:HAS]->(old:Role)
-                DELETE rel
-                WITH u
-                MATCH (r:Role { name: $roleName })
-                CREATE (u)-[:HAS]->(r)
-            `, { userEmail, roleName });
-
-            const result = await neogma.queryRunner.run(`
-                MATCH (u:User { email: $userEmail })-[:HAS]->(r:Role)
-                MATCH (u)-[:IS_FROM]->(c:Country)
-                RETURN u, r, c
-            `, { userEmail });
-
-            if (result.records.length === 0) throw new Error('User not found');
-            return [formatUser(result.records[0]!, 'neo4j')];
-        } catch (error) {
-            console.error(`Error assigning role to user with email ${userEmail} in Neo4j:`, error);
-            throw new Error('Failed to assign role in Neo4j');
-        }
-    }
-
     async getAllUserClosets(userId: string): Promise<Closet[]> {
         try {
             if (!userId) throw new Error("Missing required user id.");

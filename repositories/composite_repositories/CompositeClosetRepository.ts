@@ -1,6 +1,7 @@
 import type { IClosetRepository } from "../interfaces/IClosetRepository.js";
 import type { Closet } from "../../dtos/closets/Closet.dto.js";
 import type { ClothingItem } from "../../dtos/items/Item.dto.js";
+import type { EmbeddedUser } from "../../dtos/users/User.dto.js";
 
 export class CompositeClosetRepository implements IClosetRepository {
     constructor(private repositories: IClosetRepository[]) {}
@@ -20,14 +21,10 @@ export class CompositeClosetRepository implements IClosetRepository {
     }
 
     async createCloset(data: { name: string; description?: string; isPublic: boolean; userId: string }): Promise<Closet[]> {
-        try {
-            const results = await Promise.all(
-            this.repositories.map((repo) => repo.createCloset(data))
+        const results = await Promise.all(
+            this.repositories.map((repo) => repo.createCloset(data).catch(() => []))
         );
         return results.flat();
-    }catch (error) {
-        throw error;
-    }
     }
 
     async updateCloset(id: string, data: Partial<{ name: string; description: string; isPublic: boolean }>): Promise<Closet[]> {
@@ -69,5 +66,25 @@ export class CompositeClosetRepository implements IClosetRepository {
             this.repositories.map((repo) => repo.getUserClosets(userId).catch(() => []))
         );
         return results.flat();
+    }
+
+    async getClosetShares(closetId: string): Promise<EmbeddedUser[]> {
+        const results = await Promise.all(
+            this.repositories.map((repo) => repo.getClosetShares(closetId).catch(() => []))
+        );
+        return results.flat();
+    }
+
+    async shareCloset(closetId: string, userId: string): Promise<EmbeddedUser[]> {
+        const results = await Promise.all(
+            this.repositories.map((repo) => repo.shareCloset(closetId, userId).catch(() => []))
+        );
+        return results.flat();
+    }
+
+    async unshareCloset(closetId: string, userId: string): Promise<void> {
+        await Promise.all(
+            this.repositories.map((repo) => repo.unshareCloset(closetId, userId).catch(() => {}))
+        );
     }
 }

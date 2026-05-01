@@ -139,35 +139,6 @@ export class MongoUserRepository implements IUserRepository {
         }
     }
 
-    async assignRole(userEmail: string, roleName: string): Promise<UserDto[]> {
-        audit({
-            timestamp: new Date().toISOString(),
-            event: 'DOCUMENT_UPDATE',
-            label: 'User.role',
-            params: { userEmail, roleName },
-            source: 'MongoUserRepository.assignRole',
-        });
-
-        try {
-            const role = await Role.findOne({ name: roleName }).lean().exec();
-            if (!role) throw new Error(`Role "${roleName}" not found`);
-
-            const updated = await User.findOneAndUpdate(
-                { email: userEmail },
-                { role: { id: role.id, name: role.name } },
-                { new: true }
-            ).lean().exec();
-
-            if (!updated) throw new Error("User not found");
-
-            return [formatUser(updated, "MongoDB")];
-
-        } catch (error) {
-            console.error(`Error assigning role to user with email ${userEmail} in MongoDB:`, error);
-            throw new Error("Failed to assign role in MongoDB");
-        }
-    }
-
     async getAllUserClosets(userId: string): Promise<ClosetDto[]> {
         try {
             const foundUser = await User.findOne({ id: userId }).lean().exec();

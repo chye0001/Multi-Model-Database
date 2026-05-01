@@ -37,4 +37,8 @@ export class AuthService {
   async userHasRole(userId: string, roleName: string): Promise<boolean> {
     return await this.authRepository.userHasRole(userId, roleName);
   }
+
+  async assignRole(userEmail: string, roleName: string): Promise<User[]> {
+    return await this.authRepository.assignRole(userEmail, roleName);
+  }
 }

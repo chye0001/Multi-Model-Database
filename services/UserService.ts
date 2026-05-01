@@ -19,10 +19,6 @@ export class UserService {
     await this.userRepository.deleteUser(id);
   }
 
-  async assignRole(userEmail: string, roleName: string): Promise<any[]> {
-    return await this.userRepository.assignRole(userEmail, roleName);
-  }
-
   async getAllUserClosets(userId: string): Promise<any[]> {
     return await this.userRepository.getAllUserClosets(userId);
   }
