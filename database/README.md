@@ -180,6 +180,32 @@ npm run mongo:restore
 This will stop the container, wipe the current volume, apply the physical backup and then restart the container automatically.
 
 
+## Logical dump (mongodump) and restore
+In addition to the physical backup, you can also take a **logical dump** using `mongodump`. Unlike the physical backup, a dump is:
+- portable across MongoDB versions and storage engines
+- restorable per-collection
+- restorable while the container stays running (no downtime)
+
+There is no npm script for *taking* the dump — run it on demand with this command (PowerShell example, dumps land in [./mongo/backups/dumps/](./mongo/backups/dumps/)):
+
+```powershell
+$ts = Get-Date -Format "yyyy-MM-ddTHH-mm-ss"
+docker run --rm `
+  --network database_network `
+  --env-file .env `
+  -v "${PWD}/database/mongo/backups/dumps:/dump" `
+  mongo:7 `
+  bash -c "mongodump --host mongo-replicaset:27017 --username `$MONGO_BACKUP_USER --password `$MONGO_BACKUP_PASSWORD --authenticationDatabase admin --out /dump/$ts --gzip"
+```
+
+To restore from a dump:
+```bash
+npm run mongo:restore:dump                       # restores the most recent dump folder
+npm run mongo:restore:dump 2026-05-25T18-54-50   # restores a specific timestamp folder
+```
+This is an **online restore** — the container stays running. It uses `MONGO_ROOT_USER` / `MONGO_ROOT_PASSWORD` because `backup_agent` only has read permissions; restore requires write access. The `--drop` flag is used so each collection is replaced (true restore, not a merge).
+
+
 
 
 

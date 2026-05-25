@@ -27,18 +27,38 @@ DB_VOLUME_DEV=database_volume
 
 MongoDB credentials:
 ```
-MONGO_DB_URI_DEV=mongodb://localhost:27018/mongo?directConnection=true 
+MONGO_DB_URI_DEV=mongodb://admin:password@localhost:27018/mongo?authSource=admin&directConnection=true&retryWrites=true&w=majority
 MONGO_DB_DEV=mongo
+
+MONGO_ROOT_USER=admin
+MONGO_ROOT_PASSWORD=password
+
+MONGO_APP_USER=app_user
+MONGO_APP_PASSWORD=password
 ```
 
 Neo4j credentials:
 ```
 NEO4J_URL_DEV="neo4j://localhost:7687"
 
+NEO4J_ROOT_USERNAME_DEV="neo4j"
+NEO4J_ROOT_PASSWORD_DEV="password"
+
 NEO4J_USERNAME_DEV="neo4j"
 NEO4J_PASSWORD_DEV="password"
+
 NEO4J_DB_DEV="neo4j" 
 ```
+
+Backup user credentials (required for `*:backup` and `*:restore` scripts):
+```
+POSTGRES_BACKUP_USER=backup_user
+POSTGRES_BACKUP_PASSWORD=strongpassword
+
+MONGO_BACKUP_USER=backup_agent
+MONGO_BACKUP_PASSWORD=password
+```
+Note: the Mongo logical-dump restore (`npm run mongo:restore:dump`) uses `MONGO_ROOT_USER` / `MONGO_ROOT_PASSWORD` instead, because `backup_agent` only has read permissions.
 
 
 To start up the local databases, run the following command:
