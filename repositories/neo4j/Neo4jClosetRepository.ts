@@ -13,10 +13,10 @@ export class Neo4jClosetRepository implements IClosetRepository {
             const result = await neogma.queryRunner.run(
                 `MATCH (cl:Closet)
                  WHERE cl.isPublic = true
-                 OPTIONAL MATCH (owner:User)-[has:HAS]->(cl)
+                 OPTIONAL MATCH (owner:User)-[created:CREATES]->(cl)
                  OPTIONAL MATCH (cl)-[:STORES]->(i:Item)
                  OPTIONAL MATCH (sharedUser:User)-[:CO_CURATES]->(cl)
-                 WITH cl, owner, has,
+                 WITH cl, owner, created,
                       collect(DISTINCT i.id) AS itemIds,
                       [entry IN collect(DISTINCT CASE
                           WHEN sharedUser.id IS NOT NULL THEN {
@@ -30,7 +30,7 @@ export class Neo4jClosetRepository implements IClosetRepository {
                         coalesce(owner.id, cl.userId) AS userId,
                         itemIds,
                         sharedWith,
-                        coalesce(has.createdAt, cl.createdAt) AS createdAt`
+                        coalesce(created.createdAt, cl.createdAt) AS createdAt`
             );
 
             return result.records.map((record) => formatUserCloset(record, "neo4j"));
@@ -46,10 +46,10 @@ export class Neo4jClosetRepository implements IClosetRepository {
 
             const result = await neogma.queryRunner.run(
                 `MATCH (cl:Closet { id: $id })
-                 OPTIONAL MATCH (owner:User)-[has:HAS]->(cl)
+                 OPTIONAL MATCH (owner:User)-[created:CREATES]->(cl)
                  OPTIONAL MATCH (cl)-[:STORES]->(i:Item)
                  OPTIONAL MATCH (sharedUser:User)-[:CO_CURATES]->(cl)
-                 WITH cl, owner, has,
+                 WITH cl, owner, created,
                       collect(DISTINCT i.id) AS itemIds,
                       [entry IN collect(DISTINCT CASE
                           WHEN sharedUser.id IS NOT NULL THEN {
@@ -63,7 +63,7 @@ export class Neo4jClosetRepository implements IClosetRepository {
                         coalesce(owner.id, cl.userId) AS userId,
                         itemIds,
                         sharedWith,
-                        coalesce(has.createdAt, cl.createdAt) AS createdAt`,
+                        coalesce(created.createdAt, cl.createdAt) AS createdAt`,
                 { id: numericId }
             );
 
@@ -287,10 +287,10 @@ export class Neo4jClosetRepository implements IClosetRepository {
     async getUserClosets(userId: string): Promise<ClosetDTO[]> {
         try {
             const result = await neogma.queryRunner.run(
-                `MATCH (u:User { id: $userId })-[has:HAS]->(cl:Closet)
+                `MATCH (u:User { id: $userId })-[created:CREATES]->(cl:Closet)
                  OPTIONAL MATCH (cl)-[:STORES]->(i:Item)
                  OPTIONAL MATCH (sharedUser:User)-[:CO_CURATES]->(cl)
-                 WITH cl, u, has,
+                 WITH cl, u, created,
                       collect(DISTINCT i.id) AS itemIds,
                       [entry IN collect(DISTINCT CASE
                           WHEN sharedUser.id IS NOT NULL THEN {
@@ -304,7 +304,7 @@ export class Neo4jClosetRepository implements IClosetRepository {
                         u.id AS userId,
                         itemIds,
                         sharedWith,
-                        coalesce(has.createdAt, cl.createdAt) AS createdAt`,
+                        coalesce(created.createdAt, cl.createdAt) AS createdAt`,
                 { userId }
             );
 

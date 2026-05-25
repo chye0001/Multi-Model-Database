@@ -251,8 +251,8 @@ export async function seed(isTestRun = false) {
   });
 
   // ── 8. Closets ────────────────────────────────────────────────────────────
-  // Created after Users so we can link (User)-[:HAS]->(Closet).
-  // The HAS relationship carries a createdAt timestamp.
+  // Created after Users so we can link (User)-[:CREATES]->(Closet).
+  // The CREATES relationship carries a createdAt timestamp.
   const ClosetModel = getClosetModel();
 
   let closetSummer: ClosetInstance, closetFormal: ClosetInstance;
@@ -274,7 +274,7 @@ export async function seed(isTestRun = false) {
   });
 
   await step("User → Closet relationships", async () => {
-    // (User)-[:HAS {createdAt}]->(Closet)
+    // (User)-[:CREATES {createdAt}]->(Closet)
     await userAlice.relateTo({
       alias: "closets",
       where: { id: closetSummer.id },

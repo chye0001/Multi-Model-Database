@@ -8,6 +8,8 @@ const CompactUserSchema = {
   email:     { type: String, required: true }
 };
 
+
+
 export interface IReview {
   id: number;
   score: number;
@@ -20,6 +22,19 @@ export interface IReview {
   };
   dateWritten?: Date;
 }
+
+const ReviewSchema = new Schema<IReview>(
+  {
+    id:          { type: Number, required: true },
+    score:       { type: Number, required: true, min: 1, max: 5 },
+    text:        { type: String, required: true, trim: true },
+    writtenBy:   CompactUserSchema,
+    dateWritten: { type: Date, default: Date.now },
+  },
+  { _id: false }
+);
+
+
 
 export interface IOutfit extends Document {
   id: number;
@@ -43,17 +58,6 @@ export interface IOutfit extends Document {
   }[];
   reviews: IReview[];
 }
-
-const ReviewSchema = new Schema<IReview>(
-  {
-    id:          { type: Number, required: true },
-    score:       { type: Number, required: true, min: 1, max: 5 },
-    text:        { type: String, required: true, trim: true },
-    writtenBy:   CompactUserSchema,
-    dateWritten: { type: Date, default: Date.now },
-  },
-  { _id: false }
-);
 
 const OutfitSchema = new Schema<IOutfit>(
   {

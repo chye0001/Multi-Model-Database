@@ -42,7 +42,7 @@ export interface UserProperties {
 }
 
 /**
- * Relationship properties on the (User)-[:HAS]->(Closet) edge.
+ * Relationship properties on the (User)-[:CREATES]->(Closet) edge.
  * The diagram shows `createdAt: datetime` on that relationship.
  */
 export interface UserHasClosetRelProps {
@@ -66,6 +66,8 @@ export interface UserRelatedNodes {
   /**
    * User -[:HAS]-> Role  (many-to-one)
    * Each user has one role; a role can be assigned to many users.
+   * Note: this edge is still `:HAS` (used by the auth flow); only the
+   * User→Closet edge was renamed to `:CREATES`.
    */
   role: ModelRelatedNodesI<
     ReturnType<typeof getRoleModel>,
@@ -81,7 +83,7 @@ export interface UserRelatedNodes {
   >;
 
   /**
-   * User -[:HAS {createdAt}]-> Closet  (one-to-many)
+   * User -[:CREATES {createdAt}]-> Closet  (one-to-many)
    * The relationship carries a `createdAt` timestamp.
    *
    * Neogma requires the property key in CreateRelationshipProperties
